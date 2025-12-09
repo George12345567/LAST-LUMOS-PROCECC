@@ -9,25 +9,31 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Lumos Agency Light Theme */
-    --background: 0 0% 100%;  /* Pure White */
-    --foreground: 215 60% 20%;  /* Dark Navy Blue #1a2b4d */
+    --background: 0 0% 100%;
+    /* Pure White */
+    --foreground: 215 60% 20%;
+    /* Dark Navy Blue #1a2b4d */
 
-    --card: 0 0% 100%;  /* White for cards */
+    --card: 0 0% 100%;
+    /* White for cards */
     --card-foreground: 215 60% 20%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 215 60% 20%;
 
-    --primary: 188 100% 42%;  /* Light Blue/Turquoise #00bcd4 */
+    --primary: 188 100% 42%;
+    /* Light Blue/Turquoise #00bcd4 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 95%;  /* Light Grey #f2f2f2 */
+    --secondary: 0 0% 95%;
+    /* Light Grey #f2f2f2 */
     --secondary-foreground: 215 60% 20%;
 
     --muted: 0 0% 95%;
     --muted-foreground: 215 30% 50%;
 
-    --accent: 188 100% 42%;  /* Turquoise accent */
+    --accent: 188 100% 42%;
+    /* Turquoise accent */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
@@ -42,10 +48,10 @@ All colors MUST be HSL.
     /* Glass effect variables - subtle for light theme */
     --glass-bg: 0 0% 100% / 0.8;
     --glass-border: 188 100% 42% / 0.1;
-    
+
     /* Glow effect - minimal */
     --glow-color: 188 100% 42%;
-    
+
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -68,6 +74,7 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
+
   /* Clean card effect for light theme */
   .glass-card {
     background: hsl(var(--card));
@@ -151,13 +158,11 @@ All colors MUST be HSL.
     inset: -2px;
     border-radius: inherit;
     padding: 2px;
-    background: conic-gradient(
-      from 90deg,
-      hsl(var(--primary)),
-      transparent 35%,
-      hsl(var(--primary)) 70%,
-      transparent 100%
-    );
+    background: conic-gradient(from 90deg,
+        hsl(var(--primary)),
+        transparent 35%,
+        hsl(var(--primary)) 70%,
+        transparent 100%);
     filter: blur(4px);
     opacity: 0;
     transition: opacity 0.4s ease;
@@ -171,18 +176,24 @@ All colors MUST be HSL.
 
 /* Custom animations */
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px);
   }
+
   50% {
     transform: translateY(-10px);
   }
 }
 
 @keyframes glow-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.7;
   }
@@ -193,6 +204,7 @@ All colors MUST be HSL.
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -203,6 +215,7 @@ All colors MUST be HSL.
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -213,6 +226,7 @@ All colors MUST be HSL.
     opacity: 0;
     transform: translateX(-50px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -224,6 +238,7 @@ All colors MUST be HSL.
     opacity: 0;
     transform: translateX(50px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -234,6 +249,7 @@ All colors MUST be HSL.
   0% {
     transform: translate3d(0, 0, 0);
   }
+
   100% {
     transform: translate3d(-50%, 0, 0);
   }
@@ -241,18 +257,23 @@ All colors MUST be HSL.
 
 /* Star Animations for Hero Section - Ultra Smooth */
 @keyframes starTwinkle {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.3;
     transform: scale(1) rotate(0deg);
   }
+
   25% {
     opacity: 0.6;
     transform: scale(1.1) rotate(90deg);
   }
+
   50% {
     opacity: 1;
     transform: scale(1.2) rotate(180deg);
   }
+
   75% {
     opacity: 0.6;
     transform: scale(1.1) rotate(270deg);
@@ -260,21 +281,26 @@ All colors MUST be HSL.
 }
 
 @keyframes starPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.5;
     transform: scale(1);
     filter: brightness(1) blur(0.5px);
   }
+
   25% {
     opacity: 0.7;
     transform: scale(1.15);
     filter: brightness(1.2) blur(0.4px);
   }
+
   50% {
     opacity: 1;
     transform: scale(1.3);
     filter: brightness(1.5) blur(0.3px);
   }
+
   75% {
     opacity: 0.7;
     transform: scale(1.15);
@@ -283,21 +309,26 @@ All colors MUST be HSL.
 }
 
 @keyframes starGlow {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.4;
     transform: scale(1) rotate(0deg);
     filter: brightness(1) blur(1px);
   }
+
   25% {
     opacity: 0.7;
     transform: scale(1.2) rotate(90deg);
     filter: brightness(1.5) blur(0.7px);
   }
+
   50% {
     opacity: 1;
     transform: scale(1.4) rotate(180deg);
     filter: brightness(2) blur(0.5px);
   }
+
   75% {
     opacity: 0.7;
     transform: scale(1.2) rotate(270deg);
@@ -310,20 +341,25 @@ All colors MUST be HSL.
     opacity: 0;
     transform: translateY(-150px) translateX(-150px) rotate(-45deg) scale(0.5);
   }
+
   5% {
     opacity: 0.5;
   }
+
   10% {
     opacity: 1;
     transform: translateY(-100px) translateX(-100px) rotate(-45deg) scale(1);
   }
+
   90% {
     opacity: 1;
     transform: translateY(150px) translateX(150px) rotate(-45deg) scale(1);
   }
+
   95% {
     opacity: 0.5;
   }
+
   100% {
     opacity: 0;
     transform: translateY(250px) translateX(250px) rotate(-45deg) scale(0.5);
@@ -335,18 +371,22 @@ All colors MUST be HSL.
     opacity: 0;
     transform: translateY(0) translateX(0) scale(0);
   }
+
   10% {
     opacity: 0.6;
     transform: translateY(-20px) translateX(10px) scale(1);
   }
+
   50% {
     opacity: 1;
     transform: translateY(-200px) translateX(30px) scale(1.2);
   }
+
   90% {
     opacity: 0.8;
     transform: translateY(-400px) translateX(50px) scale(1);
   }
+
   100% {
     opacity: 0;
     transform: translateY(-500px) translateX(60px) scale(0.5);
@@ -358,6 +398,7 @@ All colors MUST be HSL.
   0% {
     transform: translate3d(0, 0, 0);
   }
+
   100% {
     transform: translate3d(-33.333%, 0, 0);
   }
@@ -367,9 +408,11 @@ All colors MUST be HSL.
   0% {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
+
   50% {
     transform: translate3d(20px, -20px, 0) rotate(10deg);
   }
+
   100% {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
@@ -379,6 +422,7 @@ All colors MUST be HSL.
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }
@@ -401,12 +445,10 @@ All colors MUST be HSL.
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    120deg,
-    transparent,
-    hsl(var(--primary) / 0.2),
-    transparent
-  );
+  background: linear-gradient(120deg,
+      transparent,
+      hsl(var(--primary) / 0.2),
+      transparent);
   transform: translateX(-100%);
   animation: shimmer 2.5s ease-in-out infinite;
 }
@@ -458,17 +500,21 @@ All colors MUST be HSL.
 
 /* Hide scrollbar utility */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
+  display: none;
+  /* Chrome, Safari and Opera */
 }
 
 /* Thin scrollbar utility */
 .scrollbar-thin {
-  scrollbar-width: thin;  /* Firefox */
+  scrollbar-width: thin;
+  /* Firefox */
   scrollbar-color: hsl(var(--primary) / 0.2) transparent;
 }
 
@@ -490,6 +536,31 @@ All colors MUST be HSL.
   background-color: hsl(var(--primary) / 0.3);
 }
 
+/* Custom Modal Scrollbar */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.3) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: hsl(var(--secondary));
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.4);
+  border-radius: 10px;
+  border: 2px solid hsl(var(--secondary));
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.6);
+}
+
 /* Enhanced Select Dropdown */
 select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
@@ -502,4 +573,3 @@ select {
 select:focus {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='hsl(188, 100%25, 42%25)' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
 }
-

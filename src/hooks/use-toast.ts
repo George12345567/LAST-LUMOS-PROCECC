@@ -167,14 +167,22 @@ function useToast() {
   const [state, setState] = React.useState<State>(memoryState);
 
   React.useEffect(() => {
-    listeners.push(setState);
+    // Subscribe to state changes
+    const listener = (newState: State) => {
+      setState(newState);
+    };
+    listeners.push(listener);
+    
+    // Set initial state
+    setState(memoryState);
+    
     return () => {
-      const index = listeners.indexOf(setState);
+      const index = listeners.indexOf(listener);
       if (index > -1) {
         listeners.splice(index, 1);
       }
     };
-  }, [state]);
+  }, []); // Empty dependency array - only run once
 
   return {
     ...state,

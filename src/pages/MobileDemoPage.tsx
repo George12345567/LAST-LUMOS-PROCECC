@@ -1,17 +1,8 @@
 import { useSearchParams } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
 import { ShoppingCart, Plus, Star, Clock, Home, Search, User, X, Heart, Grid3x3, List, Moon, Sun, Bell, Filter, ZoomIn, Bookmark, MapPin, Settings, ArrowRight, Flame, Sparkles, Phone, MessageCircle, Share2, Award, TrendingUp, CheckCircle2 } from "lucide-react";
-
-interface MenuItem {
-  id: number;
-  name: string;
-  description: string;
-  price: string;
-  image: string;
-  rating: number;
-  time: string;
-  featured?: boolean;
-}
+import type { MenuItem } from "@/types";
+import { defaultItemsByServiceType } from "@/features/live-preview/constants";
 
 const MobileDemoPage = () => {
   const [searchParams] = useSearchParams();
@@ -39,366 +30,8 @@ const MobileDemoPage = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Get menu items based on service type
-  const getMenuItems = (): MenuItem[] => {
-    const itemsByService: Record<string, MenuItem[]> = {
-      restaurant: [
-        {
-          id: 1,
-          name: "ريش ضاني مدخنة",
-          description: "ريش ضاني طازجة مدخنة على الفحم مع الأرز والسلطة",
-          price: "265",
-          image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400",
-          rating: 4.8,
-          time: "25 دقيقة",
-          featured: true,
-        },
-        {
-          id: 2,
-          name: "شطيرة بريسكت",
-          description: "بريسكت مشوي مع الخضار الطازج والصلصة الخاصة",
-          price: "210",
-          image: "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=400",
-          rating: 4.9,
-          time: "15 دقيقة",
-          featured: true,
-        },
-        {
-          id: 3,
-          name: "طبق كباب مشوي",
-          description: "كباب لحم طازج مع البطاطس المحمرة والسلطة",
-          price: "240",
-          image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
-          rating: 4.7,
-          time: "20 دقيقة",
-          featured: true,
-        },
-        {
-          id: 4,
-          name: "كوب شاي تركي",
-          description: "شاي تركي أصيل مع النعناع والليمون",
-          price: "25",
-          image: "https://images.unsplash.com/photo-1564890369478-c89ca6d9cde9?w=400",
-          rating: 4.6,
-          time: "5 دقائق",
-        },
-        {
-          id: 5,
-          name: "تشيز كيك فريش",
-          description: "تشيز كيك كريمي مع التوت الطازج",
-          price: "85",
-          image: "https://images.unsplash.com/photo-1524351199678-941a58a3df50?w=400",
-          rating: 4.9,
-          time: "10 دقائق",
-        },
-        {
-          id: 6,
-          name: "برجر لحم كلاسيكي",
-          description: "برجر لحم طازج مع الجبن والخضار والصلصة",
-          price: "180",
-          image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400",
-          rating: 4.8,
-          time: "18 دقيقة",
-        },
-      ],
-      cafe: [
-        {
-          id: 101,
-          name: "إسبريسو إيطالي",
-          description: "قهوة إسبريسو قوية ومكثفة من أجود أنواع البن",
-          price: "35",
-          image: "https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400",
-          rating: 4.9,
-          time: "3 دقائق",
-          featured: true,
-        },
-        {
-          id: 102,
-          name: "كابتشينو كريمي",
-          description: "كابتشينو مع رغوة الحليب الكريمية والكاكاو",
-          price: "45",
-          image: "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400",
-          rating: 4.8,
-          time: "5 دقائق",
-          featured: true,
-        },
-        {
-          id: 103,
-          name: "آيس كوفي",
-          description: "قهوة باردة مع الحليب والثلج",
-          price: "40",
-          image: "https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400",
-          rating: 4.8,
-          time: "4 دقائق",
-          featured: true,
-        },
-        {
-          id: 104,
-          name: "كرواسون بالشوكولاتة",
-          description: "كرواسون طازج محشو بالشوكولاتة الداكنة",
-          price: "30",
-          image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400",
-          rating: 4.6,
-          time: "2 دقيقة",
-        },
-        {
-          id: 105,
-          name: "مافن التوت",
-          description: "مافن طازج مع التوت الأزرق والكريمة",
-          price: "35",
-          image: "https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=400",
-          rating: 4.7,
-          time: "2 دقيقة",
-        },
-        {
-          id: 106,
-          name: "فرابتشينو شوكولاتة",
-          description: "مشروب قهوة بارد مع الشوكولاتة والكريمة",
-          price: "55",
-          image: "https://images.unsplash.com/photo-1525385133512-2f3bdd039054?w=400",
-          rating: 4.9,
-          time: "5 دقائق",
-        },
-      ],
-      salon: [
-        {
-          id: 201,
-          name: "قص شعر رجالي",
-          description: "قص شعر احترافي مع تصفيف وتشذيب",
-          price: "120",
-          image: "https://images.unsplash.com/photo-1562322140-8baeececf3df?w=400",
-          rating: 4.8,
-          time: "30 دقيقة",
-          featured: true,
-        },
-        {
-          id: 202,
-          name: "قص شعر نسائي",
-          description: "قص وتشذيب احترافي مع نصائح للعناية",
-          price: "150",
-          image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400",
-          rating: 4.9,
-          time: "45 دقيقة",
-          featured: true,
-        },
-        {
-          id: 203,
-          name: "تصفيف شعر",
-          description: "تصفيف احترافي مع مجفف ومكواة",
-          price: "80",
-          image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400",
-          rating: 4.7,
-          time: "25 دقيقة",
-        },
-        {
-          id: 204,
-          name: "صبغة شعر كاملة",
-          description: "صبغة شعر احترافية مع منتجات عالية الجودة",
-          price: "350",
-          image: "https://images.unsplash.com/photo-1560869713-7d563b774f42?w=400",
-          rating: 4.8,
-          time: "90 دقيقة",
-          featured: true,
-        },
-        {
-          id: 205,
-          name: "علاج الشعر",
-          description: "علاج عميق للشعر التالف والمجهد",
-          price: "200",
-          image: "https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=400",
-          rating: 4.9,
-          time: "60 دقيقة",
-        },
-        {
-          id: 206,
-          name: "تسريحة مناسبة",
-          description: "تسريحة احترافية للمناسبات",
-          price: "100",
-          image: "https://images.unsplash.com/photo-1582095133179-bfd08e2fc6b3?w=400",
-          rating: 4.8,
-          time: "40 دقيقة",
-        },
-      ],
-      pharmacy: [
-        {
-          id: 301,
-          name: "باراسيتامول 500 مجم",
-          description: "مسكن للآلام وخافض للحرارة",
-          price: "15",
-          image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400",
-          rating: 4.7,
-          time: "متوفر",
-          featured: true,
-        },
-        {
-          id: 302,
-          name: "فيتامين د3",
-          description: "مكمل غذائي لفيتامين د3 1000 وحدة",
-          price: "85",
-          image: "https://images.unsplash.com/photo-1550572017-edd951b55104?w=400",
-          rating: 4.8,
-          time: "متوفر",
-          featured: true,
-        },
-        {
-          id: 303,
-          name: "كريم مرطب للوجه",
-          description: "كريم مرطب يومي للبشرة الحساسة",
-          price: "120",
-          image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400",
-          rating: 4.6,
-          time: "متوفر",
-        },
-        {
-          id: 304,
-          name: "شامبو للأطفال",
-          description: "شامبو لطيف خالي من الكيماويات",
-          price: "45",
-          image: "https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?w=400",
-          rating: 4.9,
-          time: "متوفر",
-        },
-        {
-          id: 305,
-          name: "أوميغا 3",
-          description: "مكمل غذائي من زيت السمك",
-          price: "150",
-          image: "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400",
-          rating: 4.7,
-          time: "متوفر",
-        },
-        {
-          id: 306,
-          name: "مضاد حيوي",
-          description: "أموكسيسيلين 500 مجم - بوصفة طبية",
-          price: "35",
-          image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400",
-          rating: 4.5,
-          time: "بوصفة",
-        },
-      ],
-      store: [
-        {
-          id: 401,
-          name: "هاتف ذكي",
-          description: "هاتف ذكي بشاشة 6.7 بوصة وكاميرا 108 ميجابكسل",
-          price: "8500",
-          image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400",
-          rating: 4.8,
-          time: "متوفر",
-          featured: true,
-        },
-        {
-          id: 402,
-          name: "تيشيرت قطني",
-          description: "تيشيرت قطني 100% بألوان متعددة",
-          price: "150",
-          image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
-          rating: 4.6,
-          time: "متوفر",
-          featured: true,
-        },
-        {
-          id: 403,
-          name: "سجادة منزلية",
-          description: "سجادة فاخرة من الصوف الطبيعي",
-          price: "1200",
-          image: "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400",
-          rating: 4.7,
-          time: "متوفر",
-        },
-        {
-          id: 404,
-          name: "كرة قدم",
-          description: "كرة قدم احترافية من الجلد الطبيعي",
-          price: "250",
-          image: "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=400",
-          rating: 4.8,
-          time: "متوفر",
-        },
-        {
-          id: 405,
-          name: "سماعات لاسلكية",
-          description: "سماعات بلوتوث مع إلغاء الضوضاء",
-          price: "450",
-          image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
-          rating: 4.9,
-          time: "متوفر",
-        },
-        {
-          id: 406,
-          name: "جينز كلاسيكي",
-          description: "بنطلون جينز بقصة مستقيمة",
-          price: "320",
-          image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400",
-          rating: 4.7,
-          time: "متوفر",
-        },
-      ],
-      clinic: [
-        {
-          id: 501,
-          name: "استشارة طبية عامة",
-          description: "فحص طبي شامل مع طبيب مختص",
-          price: "200",
-          image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=400",
-          rating: 4.9,
-          time: "30 دقيقة",
-          featured: true,
-        },
-        {
-          id: 502,
-          name: "فحص ضغط الدم",
-          description: "قياس ضغط الدم مع تقرير طبي",
-          price: "50",
-          image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400",
-          rating: 4.7,
-          time: "10 دقائق",
-        },
-        {
-          id: 503,
-          name: "علاج فيزيائي",
-          description: "جلسة علاج فيزيائي للعضلات والمفاصل",
-          price: "300",
-          image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400",
-          rating: 4.8,
-          time: "45 دقيقة",
-          featured: true,
-        },
-        {
-          id: 504,
-          name: "تحليل دم شامل",
-          description: "تحليل دم كامل مع تقرير مفصل",
-          price: "400",
-          image: "https://images.unsplash.com/photo-1582719471384-894fbb16e074?w=400",
-          rating: 4.9,
-          time: "15 دقيقة",
-        },
-        {
-          id: 505,
-          name: "استشارة أسنان",
-          description: "فحص الأسنان واللثة مع طبيب أسنان",
-          price: "150",
-          image: "https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=400",
-          rating: 4.8,
-          time: "20 دقيقة",
-        },
-        {
-          id: 506,
-          name: "فحص النظر",
-          description: "فحص شامل للعين والنظر",
-          price: "180",
-          image: "https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400",
-          rating: 4.8,
-          time: "25 دقيقة",
-        },
-      ],
-    };
-
-    return itemsByService[serviceType] || itemsByService.restaurant;
-  };
-
-  const menuItems = getMenuItems();
+  // Get menu items based on service type from shared constants
+  const menuItems = defaultItemsByServiceType[serviceType] || defaultItemsByServiceType.restaurant || [];
 
   // Filter items based on search and category
   const filteredItems = useMemo(() => {
@@ -497,15 +130,59 @@ const MobileDemoPage = () => {
               اتصل بنا
             </a>
             <button
-              onClick={() => {
-                navigator.share?.({
-                  title: `${businessName} - معاينة من Lumos Agency`,
-                  text: `جرب معاينة ${businessName} التفاعلية!`,
-                  url: window.location.href,
-                }).catch(() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  alert("تم نسخ الرابط!");
-                });
+              onClick={async () => {
+                try {
+                  // Check if navigator.share is available
+                  if (typeof navigator !== "undefined" && navigator.share) {
+                    await navigator.share({
+                      title: `${businessName} - معاينة من Lumos Agency`,
+                      text: `جرب معاينة ${businessName} التفاعلية!`,
+                      url: window.location.href,
+                    });
+                    return;
+                  }
+                } catch (error) {
+                  // User cancelled share - that's okay, just return
+                  if (error instanceof Error && error.name === "AbortError") {
+                    return;
+                  }
+                }
+
+                // Fallback: copy to clipboard
+                try {
+                  if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(window.location.href);
+                    alert("تم نسخ الرابط!");
+                  } else {
+                    // Fallback for older browsers
+                    const textArea = document.createElement("textarea");
+                    textArea.value = window.location.href;
+                    textArea.style.position = "fixed";
+                    textArea.style.opacity = "0";
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                      document.execCommand("copy");
+                      alert("تم نسخ الرابط!");
+                    } catch (err) {
+                      console.error("Failed to copy:", err);
+                      alert("الرابط: " + window.location.href);
+                    } finally {
+                      // Safely remove textArea - check if it's still in DOM
+                      try {
+                        if (textArea.parentNode) {
+                          document.body.removeChild(textArea);
+                        }
+                      } catch (removeError) {
+                        console.error("Failed to remove textArea:", removeError);
+                      }
+                    }
+                  }
+                } catch (clipboardError) {
+                  console.error("Failed to copy:", clipboardError);
+                  // Last resort: show the URL
+                  alert("الرابط: " + window.location.href);
+                }
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-foreground rounded-lg text-xs font-semibold hover:bg-secondary/80 transition-colors"
             >
@@ -566,12 +243,12 @@ const MobileDemoPage = () => {
         </div>
         <p className="text-xs opacity-90">
           {serviceType === "restaurant" ? "مفتوح الآن • توصيل 30-45 دقيقة" :
-           serviceType === "cafe" ? "مفتوح الآن • جاهز للاستلام" :
-           serviceType === "salon" ? "مفتوح الآن • احجز موعدك" :
-           serviceType === "pharmacy" ? "مفتوح الآن • متوفر للطلب" :
-           serviceType === "store" ? "مفتوح الآن • توصيل سريع" :
-           serviceType === "clinic" ? "مفتوح الآن • احجز موعدك" :
-           "مفتوح الآن"}
+            serviceType === "cafe" ? "مفتوح الآن • جاهز للاستلام" :
+              serviceType === "salon" ? "مفتوح الآن • احجز موعدك" :
+                serviceType === "pharmacy" ? "مفتوح الآن • متوفر للطلب" :
+                  serviceType === "store" ? "مفتوح الآن • توصيل سريع" :
+                    serviceType === "clinic" ? "مفتوح الآن • احجز موعدك" :
+                      "مفتوح الآن"}
         </p>
       </header>
 
@@ -607,12 +284,12 @@ const MobileDemoPage = () => {
             <img
               src={
                 serviceType === "restaurant" ? "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800" :
-                serviceType === "cafe" ? "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800" :
-                serviceType === "salon" ? "https://images.unsplash.com/photo-1562322140-8baeececf3df?w=800" :
-                serviceType === "pharmacy" ? "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800" :
-                serviceType === "store" ? "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800" :
-                serviceType === "clinic" ? "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=800" :
-                "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800"
+                  serviceType === "cafe" ? "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800" :
+                    serviceType === "salon" ? "https://images.unsplash.com/photo-1562322140-8baeececf3df?w=800" :
+                      serviceType === "pharmacy" ? "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800" :
+                        serviceType === "store" ? "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800" :
+                          serviceType === "clinic" ? "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=800" :
+                            "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800"
               }
               alt={businessName}
               className="w-full h-full object-cover"
@@ -621,21 +298,21 @@ const MobileDemoPage = () => {
             <div className="absolute bottom-4 left-4 right-4">
               <h2 className="text-white text-lg font-bold mb-1">
                 {serviceType === "restaurant" ? "أطباق لذيذة في انتظارك" :
-                 serviceType === "cafe" ? "مشروبات ساخنة وباردة" :
-                 serviceType === "salon" ? "خدمات تجميل احترافية" :
-                 serviceType === "pharmacy" ? "منتجات صحية وطبية" :
-                 serviceType === "store" ? "منتجات متنوعة" :
-                 serviceType === "clinic" ? "خدمات طبية متخصصة" :
-                 "خدماتنا"}
+                  serviceType === "cafe" ? "مشروبات ساخنة وباردة" :
+                    serviceType === "salon" ? "خدمات تجميل احترافية" :
+                      serviceType === "pharmacy" ? "منتجات صحية وطبية" :
+                        serviceType === "store" ? "منتجات متنوعة" :
+                          serviceType === "clinic" ? "خدمات طبية متخصصة" :
+                            "خدماتنا"}
               </h2>
               <p className="text-white/90 text-sm">
                 {serviceType === "restaurant" ? "اطلب الآن واستمتع بوجبات طازجة" :
-                 serviceType === "cafe" ? "استمتع بأجود أنواع القهوة" :
-                 serviceType === "salon" ? "احجز موعدك الآن" :
-                 serviceType === "pharmacy" ? "اطلب منتجاتك الآن" :
-                 serviceType === "store" ? "تسوق الآن" :
-                 serviceType === "clinic" ? "احجز موعدك الآن" :
-                 "اطلب الآن"}
+                  serviceType === "cafe" ? "استمتع بأجود أنواع القهوة" :
+                    serviceType === "salon" ? "احجز موعدك الآن" :
+                      serviceType === "pharmacy" ? "اطلب منتجاتك الآن" :
+                        serviceType === "store" ? "تسوق الآن" :
+                          serviceType === "clinic" ? "احجز موعدك الآن" :
+                            "اطلب الآن"}
               </p>
             </div>
           </div>
@@ -788,12 +465,12 @@ const MobileDemoPage = () => {
 
           <h3 className="text-xl font-bold mb-4 text-gray-900">
             {serviceType === "restaurant" ? "الأطباق الشائعة" :
-             serviceType === "cafe" ? "المشروبات الشائعة" :
-             serviceType === "salon" ? "الخدمات الشائعة" :
-             serviceType === "pharmacy" ? "المنتجات الشائعة" :
-             serviceType === "store" ? "المنتجات الشائعة" :
-             serviceType === "clinic" ? "الخدمات الشائعة" :
-             "العناصر الشائعة"}
+              serviceType === "cafe" ? "المشروبات الشائعة" :
+                serviceType === "salon" ? "الخدمات الشائعة" :
+                  serviceType === "pharmacy" ? "المنتجات الشائعة" :
+                    serviceType === "store" ? "المنتجات الشائعة" :
+                      serviceType === "clinic" ? "الخدمات الشائعة" :
+                        "العناصر الشائعة"}
           </h3>
 
           {viewMode === "list" ? (
@@ -862,12 +539,12 @@ const MobileDemoPage = () => {
                       >
                         <Plus className="w-3.5 h-3.5" />
                         {serviceType === "restaurant" ? "أضف للسلة" :
-                         serviceType === "cafe" ? "أضف للسلة" :
-                         serviceType === "salon" ? "احجز الآن" :
-                         serviceType === "pharmacy" ? "أضف للسلة" :
-                         serviceType === "store" ? "أضف للسلة" :
-                         serviceType === "clinic" ? "احجز الآن" :
-                         "أضف للسلة"}
+                          serviceType === "cafe" ? "أضف للسلة" :
+                            serviceType === "salon" ? "احجز الآن" :
+                              serviceType === "pharmacy" ? "أضف للسلة" :
+                                serviceType === "store" ? "أضف للسلة" :
+                                  serviceType === "clinic" ? "احجز الآن" :
+                                    "أضف للسلة"}
                       </button>
                     </div>
                   </div>
