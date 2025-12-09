@@ -1,0 +1,2 @@
+﻿origin	https://github.com/George12345567/Lumos.git (fetch)
+origin	https://github.com/George12345567/Lumos.git (push)
