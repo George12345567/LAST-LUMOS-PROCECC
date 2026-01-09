@@ -1,17 +1,29 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { CATEGORIES, CATEGORY_LABELS, CATEGORY_LABELS_EN, SERVICES } from '@/data/pricing';
 import { getPriceBreakdown } from '@/utils/CalculatorEngine';
 import { toast } from 'sonner';
 import { ShoppingCart } from 'lucide-react';
 
-const PlanBuilder = ({ language = 'en', currency = 'EGP', currencySymbol = 'EGP', isEgypt = true, convertPrice = (price) => price }) => {
+const PlanBuilder = ({ language = 'en', currency = 'EGP', currencySymbol = 'EGP', isEgypt = true, convertPrice = (price) => price, source = 'standard_pricing', initialPayload = {} }) => {
     const [activeCategory, setActiveCategory] = useState(CATEGORIES.WEB);
     const [selectedServices, setSelectedServices] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [clientName, setClientName] = useState('');
     const [clientPhone, setClientPhone] = useState('');
     const [clientEmail, setClientEmail] = useState('');
+
+    // --- Smart Context-Aware Logic ---
+    useEffect(() => {
+        if (source === 'brand_visualizer') {
+            const brandingKey = Object.keys(CATEGORIES).find(k => k.includes('BRAND')) || 'BRANDING';
+            if (CATEGORIES[brandingKey]) {
+                setActiveCategory(CATEGORIES[brandingKey]);
+            }
+        } else if (source === 'app_builder') {
+            setActiveCategory(CATEGORIES.WEB);
+        }
+    }, [source]);
 
     const translations = {
         en: {
@@ -91,14 +103,18 @@ const PlanBuilder = ({ language = 'en', currency = 'EGP', currencySymbol = 'EGP'
         setIsSubmitting(true);
 
         try {
-            // Prepare subscription data
-            const subscriptionData = {
-                user_id: null,
-                customer_name: clientName,
-                customer_email: clientEmail,
-                customer_phone: clientPhone,
-                package_type: 'custom',
-                package_name: 'Custom Package',
+            // Prepare package_payload for enterprise system
+            const package_payload = {
+                tier: 'Custom',
+                price: priceBreakdown.total,
+                features: selectedServices.map(s => language === 'ar' ? s.nameAr : (s.nameEn || s.nameAr)),
+                limits: {
+                    posts: { total: 10, used: 0 },
+                    stories: { total: 15, used: 0 },
+                    stories: { total: 15, used: 0 },
+                    reels: { total: 5, used: 0 }
+                },
+                source_data: initialPayload, // Store the design config here
                 selected_services: selectedServices.map(s => ({
                     id: s.id,
                     name: s.nameAr,
@@ -108,20 +124,32 @@ const PlanBuilder = ({ language = 'en', currency = 'EGP', currencySymbol = 'EGP'
                 })),
                 subtotal: priceBreakdown.subtotal,
                 tech_ops_fee: priceBreakdown.techOpsFee,
-                total: priceBreakdown.total,
-                currency: currency,
-                status: 'pending'
+                selected_at: new Date().toISOString()
             };
 
-            // Save to Supabase
+            // Save to orders table (for enterprise conversion workflow)
             const { data, error } = await supabase
-                .from('subscriptions')
-                .insert([subscriptionData])
+                .from('orders')
+                .insert([{
+                    customer_name: clientName,
+                    customer_email: clientEmail,
+                    customer_phone: clientPhone,
+                    package_payload: package_payload,
+                    total_amount: priceBreakdown.total,
+                    total_amount: priceBreakdown.total,
+                    status: 'pending',
+                    source: source, // 'brand_visualizer', 'app_builder', etc.
+                    created_at: new Date().toISOString()
+                }])
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase error details:', error);
+                throw error;
+            }
 
+            console.log('Order created successfully:', data);
             toast.success('✅ Order submitted successfully!', { duration: 5000 });
 
             // Clear form
@@ -132,7 +160,7 @@ const PlanBuilder = ({ language = 'en', currency = 'EGP', currencySymbol = 'EGP'
 
         } catch (error) {
             console.error('❌ Order submission error:', error);
-            toast.error('Failed to submit order. Please try again.');
+            toast.error(`Failed to submit order: ${error.message || 'Please try again.'}`);
         } finally {
             setIsSubmitting(false);
         }

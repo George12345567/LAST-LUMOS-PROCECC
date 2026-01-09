@@ -23,6 +23,14 @@ dist-ssr
 *.sln
 *.sw?
 
+# Vercel
+.vercel
+
+# OS-specific
+Thumbs.db
+*.bak
+*~
+
 # Environment variables
 .env
 .env.local

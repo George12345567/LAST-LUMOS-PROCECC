@@ -9,12 +9,22 @@ import { useCurrency } from '@/hooks/useCurrency';
 interface PricingModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    source?: string;
+    payload?: any;
 }
 
-const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
+const PricingModal = ({ open, onOpenChange, source = 'standard_pricing', payload = {} }: PricingModalProps) => {
+    const { currency, currencySymbol, isEgypt, country, convertPrice, formatPrice, loading: currencyLoading, language: detectedLanguage } = useCurrency();
+
     const [activeTab, setActiveTab] = useState<'ready' | 'custom'>('ready');
-    const [language, setLanguage] = useState<'en' | 'ar'>('en');
-    const { currency, currencySymbol, isEgypt, country, convertPrice, formatPrice, loading: currencyLoading } = useCurrency();
+    const [language, setLanguage] = useState<'en' | 'ar'>(detectedLanguage);
+
+    // Sync language with detected location
+    useEffect(() => {
+        if (!currencyLoading) {
+            setLanguage(detectedLanguage);
+        }
+    }, [detectedLanguage, currencyLoading]);
 
     const translations = {
         en: {
@@ -55,7 +65,7 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[96vw] sm:max-w-5xl max-h-[94vh] p-0 bg-white dark:bg-slate-900 border-0 overflow-hidden rounded-2xl shadow-2xl" hideCloseButton>
+            <DialogContent className="w-full max-w-[98vw] sm:max-w-5xl max-h-[96vh] p-0 bg-white dark:bg-slate-900 border-0 overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl" hideCloseButton>
 
                 {/* Top Bar with Controls */}
                 <div className="absolute top-4 left-0 right-0 z-50 flex items-center justify-between px-4">
@@ -91,7 +101,7 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
                 </div>
 
                 <div className="overflow-y-auto max-h-[94vh]" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-                    <div className="p-6 sm:p-10">
+                    <div className="p-4 sm:p-6 md:p-10">
 
                         {/* Header */}
                         <div className="text-center mb-8">
@@ -107,7 +117,7 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
                             <motion.h1
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-2"
+                                className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2"
                             >
                                 {t.choosePackage}
                             </motion.h1>
@@ -154,7 +164,7 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -20 }}
                                     transition={{ duration: 0.2 }}
-                                    className="grid sm:grid-cols-2 gap-6 max-w-4xl mx-auto"
+                                    className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-4xl mx-auto"
                                 >
                                     {/* لوموس برو */}
                                     <div className="relative group">
@@ -166,10 +176,10 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
                                             </div>
                                         </div>
 
-                                        <div className="bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-850 rounded-2xl p-6 border-2 border-primary dark:border-primary hover:border-primary/80 dark:hover:border-primary/80 transition-all duration-300 h-full flex flex-col shadow-lg shadow-primary/10">
+                                        <div className="bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-850 rounded-xl sm:rounded-2xl p-4 sm:p-6 border-2 border-primary dark:border-primary hover:border-primary/80 dark:hover:border-primary/80 transition-all duration-300 h-full flex flex-col shadow-lg shadow-primary/10">
                                             {/* Header */}
                                             <div className="mb-6">
-                                                <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-1">
+                                                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-1">
                                                     {language === 'ar' ? PACKAGES.PRO.nameAr : PACKAGES.PRO.name}
                                                 </h3>
                                                 <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -182,14 +192,14 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
                                                 <div className="flex items-baseline gap-2 mb-1">
                                                     {isEgypt ? (
                                                         <>
-                                                            <span className="text-5xl font-black text-slate-900 dark:text-white">
+                                                            <span className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white">
                                                                 {PACKAGES.PRO.price.toLocaleString()}
                                                             </span>
                                                             <span className="text-lg text-slate-500">EGP</span>
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <span className="text-5xl font-black text-slate-900 dark:text-white">
+                                                            <span className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white">
                                                                 ${convertPrice(PACKAGES.PRO.price).toLocaleString()}
                                                             </span>
                                                             <span className="text-lg text-slate-500">USD</span>
@@ -221,7 +231,7 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
                                             </ul>
 
                                             {/* زر الاختيار */}
-                                            <button className="w-full py-3.5 bg-primary dark:bg-primary hover:bg-primary/90 dark:hover:bg-primary/90 text-white dark:text-white rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 group shadow-lg shadow-primary/30">
+                                            <button className="w-full py-3 sm:py-3.5 bg-primary dark:bg-primary hover:bg-primary/90 dark:hover:bg-primary/90 text-white dark:text-white rounded-lg sm:rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 group shadow-lg shadow-primary/30 active:scale-95">
                                                 <span>{t.selectPackage}</span>
                                                 <ArrowLeft className={`w-4 h-4 transition-transform ${language === 'ar' ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1 rotate-180'}`} />
                                             </button>
@@ -229,10 +239,10 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
                                     </div>
 
                                     {/* لوموس ستارت */}
-                                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-300 h-full flex flex-col">
+                                    <div className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-300 h-full flex flex-col">
                                         {/* Header */}
                                         <div className="mb-6">
-                                            <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-1">
+                                            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-1">
                                                 {language === 'ar' ? PACKAGES.START.nameAr : PACKAGES.START.name}
                                             </h3>
                                             <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -245,14 +255,14 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
                                             <div className="flex items-baseline gap-2 mb-1">
                                                 {isEgypt ? (
                                                     <>
-                                                        <span className="text-5xl font-black text-slate-900 dark:text-white">
+                                                        <span className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white">
                                                             {PACKAGES.START.price.toLocaleString()}
                                                         </span>
                                                         <span className="text-lg text-slate-500">EGP</span>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <span className="text-5xl font-black text-slate-900 dark:text-white">
+                                                        <span className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white">
                                                             ${convertPrice(PACKAGES.START.price).toLocaleString()}
                                                         </span>
                                                         <span className="text-lg text-slate-500">USD</span>
@@ -284,7 +294,7 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
                                         </ul>
 
                                         {/* زر الاختيار */}
-                                        <button className="w-full py-3.5 bg-primary/10 dark:bg-primary/20 hover:bg-primary/20 dark:hover:bg-primary/30 text-primary dark:text-primary rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 group border border-primary/30">
+                                        <button className="w-full py-3 sm:py-3.5 bg-primary/10 dark:bg-primary/20 hover:bg-primary/20 dark:hover:bg-primary/30 text-primary dark:text-primary rounded-lg sm:rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 group border border-primary/30 active:scale-95">
                                             <span>{t.selectPackage}</span>
                                             <ArrowLeft className={`w-4 h-4 transition-transform ${language === 'ar' ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1 rotate-180'}`} />
                                         </button>
@@ -308,7 +318,15 @@ const PricingModal = ({ open, onOpenChange }: PricingModalProps) => {
                                                 {t.customDescription}
                                             </p>
                                         </div>
-                                        <PlanBuilder language={language} currency={currency} currencySymbol={currencySymbol} isEgypt={isEgypt} convertPrice={convertPrice} />
+                                        <PlanBuilder
+                                            language={language}
+                                            currency={currency}
+                                            currencySymbol={currencySymbol}
+                                            isEgypt={isEgypt}
+                                            convertPrice={convertPrice}
+                                            source={source}
+                                            initialPayload={payload}
+                                        />
                                     </div>
                                 </motion.div>
                             )}

@@ -7,15 +7,15 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { ErrorBoundary, LoadingFallback } from "@/components/shared";
-import { AuthProvider } from "@/context/AuthContext";
 import LeadCapturePopup from "@/features/lead-capture";
 
 // Lazy load pages for better code splitting
 const Index = lazy(() => import("./pages/Index"));
 const MobileDemoPage = lazy(() => import("./pages/MobileDemoPage"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Login = lazy(() => import("./pages/Login"));
-const SignUp = lazy(() => import("./pages/SignUp"));
+const ClientLogin = lazy(() => import("./pages/ClientLogin"));
+const ClientDashboard = lazy(() => import("./pages/ClientDashboard"));
+const CreativeStudioPage = lazy(() => import("./pages/CreativeStudioPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Create QueryClient outside component to avoid recreating on every render
@@ -33,34 +33,35 @@ const App = () => {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <TooltipProvider>
-            <BrowserRouter>
-              <Suspense fallback={<LoadingFallback />}>
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<Index />} />
-                  <Route path="/demo" element={<MobileDemoPage />} />
-                  
-                  {/* Authentication Routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<SignUp />} />
+        <TooltipProvider>
+          <BrowserRouter>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Index />} />
+                <Route path="/demo" element={<MobileDemoPage />} />
+                <Route path="/client-login" element={<ClientLogin />} />
 
-                  {/* Dashboard - Now Public */}
-                  <Route path="/dashboard" element={<Dashboard />} />
+                {/* Dashboard - Public (No Authentication) */}
+                <Route path="/dashboard" element={<Dashboard />} />
 
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-            <Toaster />
-            <Sonner />
-            <Analytics />
-            <SpeedInsights />
-          </TooltipProvider>
+                {/* Client Portal */}
+                <Route path="/clients/dashboard" element={<ClientDashboard />} />
+
+                {/* Creative Studio - Design Tools */}
+                <Route path="/creative-studio" element={<CreativeStudioPage />} />
+
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+          <Toaster />
+          <Sonner />
+          <Analytics />
+          <SpeedInsights />
           <LeadCapturePopup />
-        </AuthProvider>
+        </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

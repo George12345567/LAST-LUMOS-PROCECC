@@ -2,12 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Sparkles, Smartphone, ArrowRight, CheckCircle2, Home, Search, ShoppingCart, User, Plus, Star, Clock, Flame, Palette, Settings, Zap, ChevronDown, ChevronUp, X, Image as ImageIcon, Coffee, Scissors, Pill, Store, Building2, Download, Share2, BarChart3, SortAsc, Tablet, Monitor, QrCode, TrendingUp, Eye, Upload, Check, Heart, Bell, MapPin, Filter, Grid3x3, List, Moon, Sun, Languages, RefreshCw, Image as ImageIcon2, ZoomIn, Bookmark, MessageSquare, Award, TrendingDown, FileText, Copy, Save, History, Layers, GripVertical, Trash2, Edit2, FileSpreadsheet, Printer, Globe, Code, Gauge, Type, Move, Maximize2, Minimize2, Keyboard, HelpCircle, ChevronLeft, ChevronRight, Play, Pause, RotateCw } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
-import emailjs from "@emailjs/browser";
 import type { MenuItem, ServiceType, Theme, Review, Template, Version, PerformanceMetrics } from "@/types";
 import { baseThemes, defaultItemsByServiceType } from "./constants";
-import { ServiceTypeSelector, BusinessNameInput, ThemeSelector, StatsPanel, AddItemForm } from "./components";
-import { usePreviewLocalStorage, loadFromLocalStorage } from "./hooks";
-import { getTextColor, getTextColorSecondary, generateQRCode, updateCustomTheme as updateThemeColors, calculateStats } from "./utils";
 
 // Service Types - Defined outside component
 const serviceTypes: ServiceType[] = [
@@ -98,19 +94,14 @@ const serviceTypes: ServiceType[] = [
 ];
 
 const LivePreviewTool = () => {
-  // Load from localStorage using helper
-  const [businessName, setBusinessName] = useState(() => loadFromLocalStorage('livePreview_businessName', ""));
-  const [serviceType, setServiceType] = useState(() => loadFromLocalStorage('livePreview_serviceType', "restaurant"));
-  const [selectedTheme, setSelectedTheme] = useState(() => loadFromLocalStorage('livePreview_selectedTheme', "default"));
-
+  const [businessName, setBusinessName] = useState("");
+  const [serviceType, setServiceType] = useState("restaurant");
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [cartCount, setCartCount] = useState(0);
   const [showCustomization, setShowCustomization] = useState(false);
-
-  const [customItems, setCustomItems] = useState<MenuItem[]>(() => loadFromLocalStorage('livePreview_customItems', []));
-  const [hiddenDefaultItems, setHiddenDefaultItems] = useState<number[]>(() => loadFromLocalStorage('livePreview_hiddenDefaultItems', []));
-
+  const [selectedTheme, setSelectedTheme] = useState("default");
+  const [customItems, setCustomItems] = useState<MenuItem[]>([]);
   const [showAddItemForm, setShowAddItemForm] = useState(false);
   const [newItem, setNewItem] = useState({
     name: "",
@@ -169,17 +160,6 @@ const LivePreviewTool = () => {
   const [seoData, setSeoData] = useState({ title: "", description: "", keywords: "" });
   const [showSeo, setShowSeo] = useState(false);
 
-  // Copy Link Form States
-  const [showCopyForm, setShowCopyForm] = useState(false);
-  const [copyFormData, setCopyFormData] = useState({ name: "", phone: "", description: "" });
-  const [isSubmittingCopyForm, setIsSubmittingCopyForm] = useState(false);
-  const [hasSubmittedOnce, setHasSubmittedOnce] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('livePreview_hasSubmittedOnce') === 'true';
-    }
-    return false;
-  });
-
   // Theme Options - Custom theme will be added dynamically
 
   // Add custom theme dynamically
@@ -204,16 +184,27 @@ const LivePreviewTool = () => {
 
   const currentTheme = themes.find(t => t.id === selectedTheme) || themes[0];
 
-  // Combine default items with custom items, excluding hidden ones
-  const allMenuItems = [
-    ...menuItems.filter(item => !hiddenDefaultItems.includes(item.id)),
-    ...customItems
-  ];
-
-  // Function to hide a default item
-  const hideDefaultItem = (itemId: number) => {
-    setHiddenDefaultItems(prev => [...prev, itemId]);
+  // Determine text color based on theme brightness
+  const getTextColor = () => {
+    // Themes that need dark text (light backgrounds)
+    const lightThemes = ["default"];
+    if (lightThemes.includes(selectedTheme)) {
+      return "text-foreground";
+    }
+    // Dark themes use white text
+    return "text-white";
   };
+
+  const getTextColorSecondary = () => {
+    const lightThemes = ["default"];
+    if (lightThemes.includes(selectedTheme)) {
+      return "text-muted-foreground";
+    }
+    return "text-white/70";
+  };
+
+  // Combine default items with custom items
+  const allMenuItems = [...menuItems, ...customItems];
 
   // Filter items by category and search
   const filteredItems = (selectedCategory === "all"
@@ -234,17 +225,26 @@ const LivePreviewTool = () => {
     });
 
   // Calculate statistics
-  const stats = calculateStats(allMenuItems);
+  const stats = {
+    totalItems: allMenuItems.length,
+    totalValue: allMenuItems.reduce((sum, item) => sum + parseFloat(item.price || "0"), 0),
+    averagePrice: allMenuItems.length > 0
+      ? allMenuItems.reduce((sum, item) => sum + parseFloat(item.price || "0"), 0) / allMenuItems.length
+      : 0,
+    featuredCount: allMenuItems.filter(item => item.featured).length,
+    categoriesCount: new Set(allMenuItems.map(item => item.category)).size,
+  };
 
-  // Save important data to localStorage using hook
-  usePreviewLocalStorage({
-    businessName,
-    serviceType,
-    selectedTheme,
-    customItems,
-    hiddenDefaultItems,
-    hasSubmittedOnce,
-  });
+  // Generate QR Code URL (using a free QR code API)
+  const generateQRCode = () => {
+    const data = encodeURIComponent(JSON.stringify({
+      name: businessName,
+      serviceType,
+      theme: selectedTheme,
+      items: allMenuItems.length,
+    }));
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data}`;
+  };
 
   // Download preview as image
   const downloadPreview = async () => {
@@ -283,92 +283,12 @@ const LivePreviewTool = () => {
         } catch (err) {
           console.error("Failed to copy:", err);
           toast.error("فشل نسخ الرابط. الرابط: " + link);
-        } finally {
-          // Safely remove textArea - check if it's still in DOM
-          try {
-            if (textArea.parentNode) {
-              document.body.removeChild(textArea);
-            }
-          } catch (removeError) {
-            console.error("Failed to remove textArea:", removeError);
-          }
         }
+        document.body.removeChild(textArea);
       }
     } catch (error) {
       console.error("Failed to copy link:", error);
       toast.error("فشل نسخ الرابط. الرابط: " + link);
-    }
-  };
-
-  // Submit Copy Form - Send email and copy link
-  const submitCopyForm = async (actionType: "copy" | "copyAndSend") => {
-    // Validation
-    if (!copyFormData.name || !copyFormData.phone) {
-      toast.error("الرجاء إدخال الاسم ورقم التليفون");
-      return;
-    }
-
-    setIsSubmittingCopyForm(true);
-
-    try {
-      const link = `${window.location.origin}/demo?name=${encodeURIComponent(displayName)}&service=${serviceType}`;
-
-      // Send email via EmailJS
-      await emailjs.send(
-        'service_qz9ng4q',
-        'template_a1gpr19', // يمكن إنشاء template مخصص لاحقاً
-        {
-          form_type: 'Copy Preview Link',
-          user_name: copyFormData.name,
-          user_phone: copyFormData.phone,
-          user_description: copyFormData.description || 'لم يتم تقديم وصف',
-          preview_link: link,
-          business_name: displayName,
-          service_type: serviceType,
-          timestamp: new Date().toLocaleString('ar-EG'),
-          action_type: actionType === "copy" ? "نسخ فقط" : "نسخ وإرسال",
-        },
-        'QSbdI14b9C7c3rBmg'
-      );
-
-      console.log('✅ Copy link email sent successfully!');
-
-      // Copy to clipboard
-      try {
-        if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(link);
-        } else {
-          // Fallback for older browsers
-          const textArea = document.createElement("textarea");
-          textArea.value = link;
-          textArea.style.position = "fixed";
-          textArea.style.opacity = "0";
-          document.body.appendChild(textArea);
-          textArea.select();
-          document.execCommand("copy");
-          if (textArea.parentNode) {
-            document.body.removeChild(textArea);
-          }
-        }
-      } catch (copyError) {
-        console.error("Copy error:", copyError);
-      }
-
-      // Success - No toast message
-      console.log('✅ Link copied and data sent successfully!');
-
-      // Reset form data
-      setCopyFormData({ name: "", phone: "", description: "" });
-
-      // Hide form and mark as submitted once
-      setShowCopyForm(false);
-      setHasSubmittedOnce(true);
-
-    } catch (error) {
-      console.error("❌ Error submitting copy form:", error);
-      toast.error("حدث خطأ في إرسال البيانات");
-    } finally {
-      setIsSubmittingCopyForm(false);
     }
   };
 
@@ -551,10 +471,17 @@ const LivePreviewTool = () => {
     reader.readAsText(file);
   };
 
-  // Advanced Color Picker - wrapper around utility function
+  // Advanced Color Picker
   const updateCustomTheme = (colorType: "primary" | "accent", color: string) => {
-    const newTheme = updateThemeColors(customTheme, colorType, color);
-    setCustomTheme(newTheme);
+    const newTheme = { ...customTheme, [colorType]: color };
+    const gradient = `linear-gradient(135deg, ${newTheme.primary}, ${newTheme.accent})`;
+    setCustomTheme({ ...newTheme, gradient });
+    if (selectedTheme === "custom") {
+      const updatedThemes = themes.map(t =>
+        t.id === "custom" ? { ...t, primary: newTheme.primary, accent: newTheme.accent, gradient } : t
+      );
+      // Update theme in real-time
+    }
   };
 
   // Bulk Edit
@@ -758,18 +685,57 @@ const LivePreviewTool = () => {
           {/* Left Sidebar - Customization Panel */}
           <div className="lg:col-span-1 space-y-3 sm:space-y-4 reveal order-2 lg:order-1 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pb-4 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
             {/* Service Type Selector */}
-            <ServiceTypeSelector
-              serviceTypes={serviceTypes}
-              selectedType={serviceType}
-              onSelect={setServiceType}
-            />
+            <div className="glass-card p-2.5 sm:p-3 rounded-xl glow-border-hover">
+              <label className="block text-foreground mb-2 font-semibold text-xs sm:text-sm">
+                نوع الخدمة
+              </label>
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                {serviceTypes.map((st) => (
+                  <button
+                    key={st.id}
+                    onClick={() => setServiceType(st.id)}
+                    className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 transition-all relative ${serviceType === st.id
+                      ? "border-primary ring-2 ring-primary/20 bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                      }`}
+                  >
+                    <div className="flex flex-col items-center gap-1 sm:gap-1.5">
+                      <div className={`${serviceType === st.id ? "text-primary" : "text-muted-foreground"} scale-90 sm:scale-100`}>
+                        {st.icon}
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-medium text-foreground">{st.name}</span>
+                    </div>
+                    {serviceType === st.id && (
+                      <CheckCircle2 className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Main Input Card */}
-            <BusinessNameInput
-              businessName={businessName}
-              onChange={setBusinessName}
-              currentServiceType={currentServiceType}
-            />
+            <div className="glass-card p-3 sm:p-4 rounded-xl glow-border-hover">
+              <label
+                htmlFor="business-name"
+                className="block text-foreground mb-2 sm:mb-3 font-semibold text-sm sm:text-base"
+              >
+                اسم {currentServiceType.name}
+              </label>
+              <div className="relative">
+                <input
+                  id="business-name"
+                  type="text"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  className="w-full px-3 py-2 sm:py-2.5 bg-input border-2 border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-foreground font-medium text-sm"
+                  placeholder={currentServiceType.placeholder}
+                  maxLength={30}
+                />
+                {businessName.trim() && (
+                  <CheckCircle2 className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-primary animate-fade-in" />
+                )}
+              </div>
+            </div>
 
             {/* Customization Panel - Compact Design */}
             <div className="glass-card p-2.5 sm:p-3 rounded-xl">
@@ -793,11 +759,33 @@ const LivePreviewTool = () => {
               {showCustomization && (
                 <div className="space-y-3 animate-fade-in border-t border-border pt-3 max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
                   {/* Theme Selector - Compact Grid */}
-                  <ThemeSelector
-                    themes={themes}
-                    selectedTheme={selectedTheme}
-                    onSelect={setSelectedTheme}
-                  />
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Palette className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-xs font-semibold text-foreground">الألوان</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {themes.map((theme) => (
+                        <button
+                          key={theme.id}
+                          onClick={() => setSelectedTheme(theme.id)}
+                          className={`p-2 rounded-lg border-2 transition-all relative ${selectedTheme === theme.id
+                            ? "border-primary ring-1 ring-primary/30"
+                            : "border-border hover:border-primary/50"
+                            }`}
+                        >
+                          <div
+                            className="w-full h-6 rounded-md mb-1"
+                            style={{ background: theme.gradient }}
+                          />
+                          <div className="text-[10px] font-medium text-foreground text-center">{theme.name}</div>
+                          {selectedTheme === theme.id && (
+                            <CheckCircle2 className="absolute top-1 right-1 w-3 h-3 text-primary" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Add Custom Items */}
                   <div className="pt-3 border-t border-border">
@@ -1009,7 +997,42 @@ const LivePreviewTool = () => {
 
             {/* Statistics Panel */}
             {isPreviewVisible && (
-              <StatsPanel stats={stats} />
+              <div className="glass-card p-2.5 sm:p-3 rounded-xl glow-border-hover">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+                    <span className="font-semibold text-xs sm:text-sm">الإحصائيات</span>
+                  </div>
+                  <button
+                    onClick={() => setShowStats(!showStats)}
+                    className="p-1 rounded hover:bg-secondary transition-colors"
+                  >
+                    {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                </div>
+                {showStats && (
+                  <div className="space-y-2 animate-fade-in border-t border-border pt-2">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-secondary/50 p-2 rounded-lg">
+                        <div className="text-muted-foreground mb-0.5">عدد العناصر</div>
+                        <div className="font-bold text-foreground text-lg">{stats.totalItems}</div>
+                      </div>
+                      <div className="bg-secondary/50 p-2 rounded-lg">
+                        <div className="text-muted-foreground mb-0.5">إجمالي القيمة</div>
+                        <div className="font-bold text-foreground text-lg">{stats.totalValue.toFixed(0)} EGP</div>
+                      </div>
+                      <div className="bg-secondary/50 p-2 rounded-lg">
+                        <div className="text-muted-foreground mb-0.5">متوسط السعر</div>
+                        <div className="font-bold text-foreground text-lg">{stats.averagePrice.toFixed(0)} EGP</div>
+                      </div>
+                      <div className="bg-secondary/50 p-2 rounded-lg">
+                        <div className="text-muted-foreground mb-0.5">مميز</div>
+                        <div className="font-bold text-foreground text-lg">{stats.featuredCount}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Advanced Options */}
@@ -1571,7 +1594,7 @@ const LivePreviewTool = () => {
                     {copied ? "تم!" : "مشاركة"}
                   </button>
                   <a
-                    href={generateQRCode(businessName, serviceType, selectedTheme, allMenuItems.length)}
+                    href={generateQRCode()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-secondary text-foreground rounded-lg text-[10px] sm:text-xs font-semibold hover:bg-secondary/80 transition-colors"
@@ -1657,20 +1680,15 @@ const LivePreviewTool = () => {
                       } : {}}
                     >
                       <div className="relative z-10 flex-1">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <p className={`text-[10px] uppercase tracking-[0.2em] ${getTextColorSecondary(selectedTheme)}`}>
-                            Live Preview
-                          </p>
-                          <span className="bg-orange-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                            Under Development
-                          </span>
-                        </div>
-                        <p className={`text-lg font-bold ${getTextColor(selectedTheme)}`}>{displayName}</p>
+                        <p className={`text-[10px] uppercase tracking-[0.2em] mb-0.5 ${getTextColorSecondary()}`}>
+                          Live Preview
+                        </p>
+                        <p className={`text-lg font-bold ${getTextColor()}`}>{displayName}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
-                          <span className={`text-[10px] ${getTextColor(selectedTheme)}`}>4.8</span>
-                          <span className={`text-[10px] ${getTextColorSecondary(selectedTheme)}`}>•</span>
-                          <span className={`text-[10px] ${getTextColorSecondary(selectedTheme)}`}>مفتوح الآن</span>
+                          <span className={`text-[10px] ${getTextColor()}`}>4.8</span>
+                          <span className={`text-[10px] ${getTextColorSecondary()}`}>•</span>
+                          <span className={`text-[10px] ${getTextColorSecondary()}`}>مفتوح الآن</span>
                         </div>
                       </div>
                       <div className="relative z-10 flex items-center gap-1.5">
@@ -1679,7 +1697,7 @@ const LivePreviewTool = () => {
                             onClick={() => setShowSearch(!showSearch)}
                             className={`p-1.5 rounded-lg ${showSearch ? "bg-white/20" : ""} transition-colors`}
                           >
-                            <Search className={`w-4 h-4 ${getTextColor(selectedTheme)}`} />
+                            <Search className={`w-4 h-4 ${getTextColor()}`} />
                           </button>
                         )}
                         {currentPage === "home" && (
@@ -1688,7 +1706,7 @@ const LivePreviewTool = () => {
                               onClick={() => setNotifications(0)}
                               className="p-1.5 rounded-lg transition-colors"
                             >
-                              <Bell className={`w-4 h-4 ${getTextColor(selectedTheme)}`} />
+                              <Bell className={`w-4 h-4 ${getTextColor()}`} />
                               {notifications > 0 && (
                                 <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white">
                                   {notifications}
@@ -1698,7 +1716,7 @@ const LivePreviewTool = () => {
                           </div>
                         )}
                         <div className="relative">
-                          <ShoppingCart className={`w-5 h-5 ${getTextColor(selectedTheme)}`} />
+                          <ShoppingCart className={`w-5 h-5 ${getTextColor()}`} />
                           {cartCount > 0 && (
                             <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold animate-fade-in">
                               {cartCount}
@@ -1755,7 +1773,7 @@ const LivePreviewTool = () => {
                                 className={`relative rounded-xl overflow-hidden p-4 ${selectedTheme === "default" ? "bg-primary/10 border border-primary/20" : ""}`}
                                 style={selectedTheme !== "default" ? { background: currentTheme.gradient } : {}}
                               >
-                                <div className={`${getTextColor(selectedTheme)}`}>
+                                <div className={`${getTextColor()}`}>
                                   <h3 className="text-lg font-bold mb-1">مرحباً بك في {displayName}</h3>
                                   <p className="text-xs opacity-90">
                                     {serviceType === "restaurant" ? "أطباق طازجة ولذيذة في انتظارك" :
@@ -1865,7 +1883,7 @@ const LivePreviewTool = () => {
                                     key={cat.id}
                                     onClick={() => setSelectedCategory(cat.id)}
                                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap transition-all ${selectedCategory === cat.id
-                                      ? `${getTextColor(selectedTheme)} shadow-md`
+                                      ? `${getTextColor()} shadow-md`
                                       : "bg-white text-foreground border border-border hover:bg-secondary"
                                       }`}
                                     style={selectedCategory === cat.id ? {
@@ -1890,7 +1908,7 @@ const LivePreviewTool = () => {
                                     background: currentTheme.gradient
                                   } : {}}
                                 >
-                                  <div className={`flex items-center justify-between ${getTextColor(selectedTheme)}`}>
+                                  <div className={`flex items-center justify-between ${getTextColor()}`}>
                                     <div>
                                       <div className="flex items-center gap-1.5 mb-0.5">
                                         <Flame className={`w-3 h-3 ${selectedTheme === "default" ? "fill-primary text-primary" : "fill-white"}`} />
@@ -1955,21 +1973,6 @@ const LivePreviewTool = () => {
                                               <span>مميز</span>
                                             </div>
                                           )}
-
-                                          {/* Delete Button - Only for default items */}
-                                          {menuItems.some(mi => mi.id === item.id) && (
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                hideDefaultItem(item.id);
-                                              }}
-                                              className="absolute top-0.5 left-0.5 p-1 bg-red-500/90 backdrop-blur-sm rounded-full hover:bg-red-600 transition-colors z-10"
-                                              title="حذف هذا العنصر"
-                                            >
-                                              <X className="w-3 h-3 text-white" />
-                                            </button>
-                                          )}
-
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -2064,21 +2067,6 @@ const LivePreviewTool = () => {
                                             <Star className="w-2 h-2 fill-white" />
                                           </div>
                                         )}
-
-                                        {/* Delete Button - Only for default items */}
-                                        {menuItems.some(mi => mi.id === item.id) && (
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              hideDefaultItem(item.id);
-                                            }}
-                                            className="absolute top-1 left-1 p-1 bg-red-500/90 backdrop-blur-sm rounded-full hover:bg-red-600 transition-colors z-10"
-                                            title="حذف هذا العنصر"
-                                          >
-                                            <X className="w-3 h-3 text-white" />
-                                          </button>
-                                        )}
-
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -2200,7 +2188,7 @@ const LivePreviewTool = () => {
                                 className={`relative rounded-xl overflow-hidden p-4 ${selectedTheme === "default" ? "bg-primary/10 border border-primary/20" : ""}`}
                                 style={selectedTheme !== "default" ? { background: currentTheme.gradient } : {}}
                               >
-                                <div className={`flex flex-col items-center text-center ${getTextColor(selectedTheme)}`}>
+                                <div className={`flex flex-col items-center text-center ${getTextColor()}`}>
                                   <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm mb-2 flex items-center justify-center">
                                     <User className="w-8 h-8" />
                                   </div>
@@ -2412,7 +2400,7 @@ const LivePreviewTool = () => {
                     />
                   </div>
 
-                  <div className="text-center mb-4">
+                  <div className="text-center">
                     <p className="text-xs sm:text-sm text-muted-foreground mb-2">
                       <strong className="text-foreground">{displayName}</strong>
                     </p>
@@ -2422,88 +2410,40 @@ const LivePreviewTool = () => {
                     </div>
                   </div>
 
-                  {/* Show Copy Button if form is not visible and not submitted before */}
-                  {!showCopyForm && !hasSubmittedOnce && (
-                    <button
-                      onClick={() => setShowCopyForm(true)}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-semibold hover:bg-secondary/80 transition-colors"
-                    >
-                      <Share2 className="w-3.5 h-3.5" />
-                      نسخ الرابط
-                    </button>
-                  )}
-
-                  {/* Contact Form Fields - Show only when button clicked and not submitted */}
-                  {showCopyForm && !hasSubmittedOnce && (
-                    <>
-                      <div className="space-y-3 mb-3">
-                        {/* Name */}
-                        <div>
-                          <label className="block text-xs font-semibold text-foreground mb-1">
-                            الاسم <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={copyFormData.name}
-                            onChange={(e) => setCopyFormData({ ...copyFormData, name: e.target.value })}
-                            className="w-full px-3 py-2 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-sm"
-                            placeholder="أدخل اسمك"
-                            dir="rtl"
-                          />
-                        </div>
-
-                        {/* Phone */}
-                        <div>
-                          <label className="block text-xs font-semibold text-foreground mb-1">
-                            رقم التليفون <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="tel"
-                            value={copyFormData.phone}
-                            onChange={(e) => setCopyFormData({ ...copyFormData, phone: e.target.value })}
-                            className="w-full px-3 py-2 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-sm"
-                            placeholder="+20 XXX XXX XXXX"
-                            dir="ltr"
-                          />
-                        </div>
-
-                        {/* Description */}
-                        <div>
-                          <label className="block text-xs font-semibold text-foreground mb-1">
-                            الوصف (اختياري)
-                          </label>
-                          <textarea
-                            value={copyFormData.description}
-                            onChange={(e) => setCopyFormData({ ...copyFormData, description: e.target.value })}
-                            className="w-full px-3 py-2 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none text-sm"
-                            placeholder="أخبرنا المزيد..."
-                            rows={2}
-                            dir="rtl"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Two Buttons: Copy Only & Copy and Send */}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => submitCopyForm("copy")}
-                          disabled={isSubmittingCopyForm}
-                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-semibold hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                          {isSubmittingCopyForm ? "جاري..." : "نسخ فقط"}
-                        </button>
-                        <button
-                          onClick={() => submitCopyForm("copyAndSend")}
-                          disabled={isSubmittingCopyForm}
-                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Share2 className="w-3.5 h-3.5" />
-                          {isSubmittingCopyForm ? "جاري..." : "نسخ وإرسال"}
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <button
+                    onClick={async () => {
+                      const link = `${window.location.origin}/demo?name=${encodeURIComponent(displayName)}&service=${serviceType}`;
+                      try {
+                        if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+                          await navigator.clipboard.writeText(link);
+                          toast.success("تم نسخ الرابط!");
+                        } else {
+                          // Fallback for older browsers
+                          const textArea = document.createElement("textarea");
+                          textArea.value = link;
+                          textArea.style.position = "fixed";
+                          textArea.style.opacity = "0";
+                          document.body.appendChild(textArea);
+                          textArea.select();
+                          try {
+                            document.execCommand("copy");
+                            toast.success("تم نسخ الرابط!");
+                          } catch (err) {
+                            console.error("Failed to copy:", err);
+                            toast.error("فشل نسخ الرابط. الرابط: " + link);
+                          }
+                          document.body.removeChild(textArea);
+                        }
+                      } catch (error) {
+                        console.error("Failed to copy link:", error);
+                        toast.error("فشل نسخ الرابط. الرابط: " + link);
+                      }
+                    }}
+                    className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-semibold hover:bg-secondary/80 transition-colors"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    نسخ الرابط
+                  </button>
                 </div>
               )}
 
@@ -2570,4 +2510,3 @@ const LivePreviewTool = () => {
 };
 
 export default LivePreviewTool;
-

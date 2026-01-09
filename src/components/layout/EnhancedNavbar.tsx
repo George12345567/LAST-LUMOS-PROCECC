@@ -1,221 +1,252 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * EnhancedNavbar.tsx - PUBLIC NAVIGATION
+ * EnhancedNavbar.tsx - ADVANCED PUBLIC NAVIGATION
  * ═══════════════════════════════════════════════════════════════════
  * 
- * Public-facing navigation without authentication.
- * 
- * Design:
- * - White background with glassmorphism effect
- * - Gray text with Cyan (#64ffda) accents
- * - Responsive mobile/desktop layouts
- * - Smooth scroll to sections
+ * Advanced navigation with modern UI features:
+ * - Scroll progress indicator
+ * - Active section tracking
+ * - Advanced animations & micro-interactions
+ * - Enhanced mobile menu
+ * - Dynamic glassmorphism effects
  * 
  * ═══════════════════════════════════════════════════════════════════
  */
 
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Briefcase, DollarSign, Menu, LogIn, UserPlus } from "lucide-react";
+import { Home, Briefcase, DollarSign, Sparkles, Eye, HelpCircle, Layers, Phone } from "lucide-react";
 import { PricingModal } from "@/components/pricing";
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetClose,
-} from "@/components/ui/sheet";
 
 const EnhancedNavbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [pricingOpen, setPricingOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("hero");
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Navigation items
+  const navItems = [
+    { id: "hero", label: "Home" },
+    { id: "process", label: "Process" },
+    { id: "services", label: "Services" },
+    { id: "live-preview", label: "Preview" },
+    { id: "faq", label: "FAQ" },
+  ];
+
+  // Scroll progress tracking
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const progress = (scrollTop / scrollHeight) * 100;
+
+      setScrollProgress(progress);
+      setIsScrolled(scrollTop > 50);
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Active section tracking with IntersectionObserver
+  useEffect(() => {
+    const observerOptions = {
+      root: null,
+      rootMargin: "-20% 0px -80% 0px",
+      threshold: 0,
+    };
+
+    const observerCallback = (entries: IntersectionObserverEntry[]) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    };
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions);
+
+    // Observe all sections
+    navItems.forEach((item) => {
+      const element = document.getElementById(item.id);
+      if (element) observer.observe(element);
+    });
+
+    return () => observer.disconnect();
   }, []);
 
   const scrollToSection = (id: string) => {
     // If not on home page, navigate first
     if (location.pathname !== '/') {
       navigate('/');
-      // Wait for navigation then scroll
       setTimeout(() => {
         const element = document.getElementById(id);
         if (element) {
-          element.scrollIntoView({ behavior: "smooth" });
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       }, 100);
     } else {
       const element = document.getElementById(id);
       if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }
   };
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-200 shadow-sm transition-all duration-300">
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
+          ? "bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-lg"
+          : "bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm"
+          }`}
+      >
+        {/* Scroll Progress Indicator */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gray-200 to-transparent">
+          <div
+            className="h-full bg-gradient-to-r from-[#64ffda] via-cyan-400 to-[#64ffda] transition-all duration-300 shadow-[0_0_10px_rgba(100,255,218,0.5)]"
+            style={{ width: `${scrollProgress}%` }}
+          />
+        </div>
+
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
-            {/* Logo */}
+            {/* Logo with hover animation */}
             <div
-              className="text-xl sm:text-2xl font-bold text-gray-900 cursor-pointer flex items-center gap-2 hover:opacity-80 transition-opacity"
+              className="text-xl sm:text-2xl font-bold text-gray-900 cursor-pointer flex items-center gap-2 group"
               onClick={() => scrollToSection("hero")}
             >
-              <span className="text-cyan-500 text-2xl sm:text-3xl drop-shadow-lg">★</span>
-              <span className="bg-gradient-to-r from-gray-900 to-cyan-500 bg-clip-text text-transparent">Lumos</span>
+              <span className="text-cyan-500 text-2xl sm:text-3xl drop-shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 group-hover:drop-shadow-[0_0_8px_rgba(100,255,218,0.8)]">
+                ★
+              </span>
+              <span className="bg-gradient-to-r from-gray-900 to-cyan-500 bg-clip-text text-transparent transition-all duration-300 group-hover:from-cyan-500 group-hover:to-gray-900">
+                Lumos
+              </span>
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center gap-8">
-              <button
-                onClick={() => scrollToSection("hero")}
-                className="text-gray-700 hover:text-cyan-500 transition-colors duration-300 font-medium"
-              >
-                Home
-              </button>
-              <button
-                onClick={() => scrollToSection("process")}
-                className="text-gray-700 hover:text-cyan-500 transition-colors duration-300 font-medium"
-              >
-                Process
-              </button>
-              <button
-                onClick={() => scrollToSection("services")}
-                className="text-gray-700 hover:text-cyan-500 transition-colors duration-300 font-medium"
-              >
-                Services
-              </button>
-              <button
-                onClick={() => scrollToSection("live-preview")}
-                className="text-gray-700 hover:text-cyan-500 transition-colors duration-300 font-medium"
-              >
-                Preview
-              </button>
-              <button
-                onClick={() => scrollToSection("faq")}
-                className="text-gray-700 hover:text-cyan-500 transition-colors duration-300 font-medium"
-              >
-                FAQ
-              </button>
+            <div className="hidden lg:flex items-center gap-2">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className={`relative px-4 py-2 font-medium transition-all duration-300 group ${activeSection === item.id
+                    ? "text-cyan-500"
+                    : "text-gray-700 hover:text-cyan-500"
+                    }`}
+                >
+                  <span className="relative z-10">{item.label}</span>
+
+                  {/* Hover underline animation */}
+                  <span className="absolute bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-500 to-transparent transition-all duration-300 group-hover:w-full" />
+
+                  {/* Active indicator */}
+                  {activeSection === item.id && (
+                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1/2 h-0.5 bg-gradient-to-r from-transparent via-cyan-500 to-transparent animate-pulse" />
+                  )}
+
+                  {/* Hover background */}
+                  <span className="absolute inset-0 rounded-lg bg-cyan-50 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                </button>
+              ))}
+
+              {/* Pricing Button */}
               <button
                 onClick={() => setPricingOpen(true)}
-                className="text-gray-700 hover:text-cyan-500 transition-colors duration-300 font-medium"
+                className="relative px-4 py-2 font-medium text-gray-700 hover:text-cyan-500 transition-all duration-300 group"
               >
-                Pricing
+                <span className="relative z-10">Pricing</span>
+                <span className="absolute bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-500 to-transparent transition-all duration-300 group-hover:w-full" />
+                <span className="absolute inset-0 rounded-lg bg-cyan-50 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              </button>
+
+              {/* CTA Button */}
+              <button
+                onClick={() => scrollToSection("contact")}
+                className="ml-4 relative px-6 py-2.5 font-semibold text-[#0a192f] bg-gradient-to-r from-[#64ffda] to-cyan-400 rounded-lg overflow-hidden group transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/50 hover:scale-105"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 animate-pulse" />
+                  Get Started
+                </span>
+                <span className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-[#64ffda] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
               </button>
             </div>
 
-            {/* Desktop Auth Section - Login & Sign Up Buttons */}
-            <div className="hidden lg:flex items-center gap-3">
-              <Button
-                onClick={() => navigate('/login')}
-                variant="ghost"
-                className="text-gray-700 hover:text-cyan-500 hover:bg-cyan-50 font-medium transition-colors"
+            {/* Mobile Navigation Icons - Compact & Cool */}
+            <div className="flex lg:hidden items-center gap-0.5">
+              <button
+                onClick={() => scrollToSection("hero")}
+                className={`p-1.5 rounded-md transition-all duration-300 ${activeSection === "hero"
+                    ? "text-cyan-500 bg-cyan-50"
+                    : "text-gray-500 hover:text-cyan-500 hover:bg-gray-50"
+                  }`}
+                title="Home"
               >
-                <LogIn className="w-4 h-4 mr-2" />
-                Login
-              </Button>
-              <Button
-                onClick={() => navigate('/signup')}
-                className="bg-[#64ffda] hover:bg-[#64ffda]/90 text-[#0a192f] font-semibold px-6 py-2.5 rounded-lg transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
+                <Home className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => scrollToSection("process")}
+                className={`p-1.5 rounded-md transition-all duration-300 ${activeSection === "process"
+                    ? "text-cyan-500 bg-cyan-50"
+                    : "text-gray-500 hover:text-cyan-500 hover:bg-gray-50"
+                  }`}
+                title="Process"
               >
-                <UserPlus className="w-4 h-4 mr-2" />
-                Sign Up
-              </Button>
-            </div>
+                <Layers className="w-4 h-4" />
+              </button>
 
-            {/* Mobile Menu Button */}
-            <div className="lg:hidden flex items-center gap-3">
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-gray-700 hover:bg-gray-100"
-                  >
-                    <Menu className="h-6 w-6" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="bg-white border-l border-gray-200 w-80">
-                  <div className="flex flex-col gap-6 mt-8">
-                    {/* Mobile Logo */}
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-cyan-500 text-2xl">★</span>
-                      <span className="text-xl font-bold text-gray-900">Lumos</span>
-                    </div>
+              <button
+                onClick={() => scrollToSection("services")}
+                className={`p-1.5 rounded-md transition-all duration-300 ${activeSection === "services"
+                    ? "text-cyan-500 bg-cyan-50"
+                    : "text-gray-500 hover:text-cyan-500 hover:bg-gray-50"
+                  }`}
+                title="Services"
+              >
+                <Briefcase className="w-4 h-4" />
+              </button>
 
-                    {/* Mobile Navigation Links */}
-                    <SheetClose asChild>
-                      <button
-                        onClick={() => scrollToSection("hero")}
-                        className="text-gray-700 hover:text-cyan-500 transition-colors text-left py-3 border-b border-gray-200"
-                      >
-                        <Home className="w-5 h-5 inline mr-3" />
-                        Home
-                      </button>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <button
-                        onClick={() => scrollToSection("services")}
-                        className="text-gray-700 hover:text-cyan-500 transition-colors text-left py-3 border-b border-gray-200"
-                      >
-                        <Briefcase className="w-5 h-5 inline mr-3" />
-                        Services
-                      </button>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <button
-                        onClick={() => setPricingOpen(true)}
-                        className="text-gray-700 hover:text-cyan-500 transition-colors text-left py-3 border-b border-gray-200"
-                      >
-                        <DollarSign className="w-5 h-5 inline mr-3" />
-                        Pricing
-                      </button>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <button
-                        onClick={() => scrollToSection("live-preview")}
-                        className="text-gray-700 hover:text-cyan-500 transition-colors text-left py-3 border-b border-gray-200"
-                      >
-                        Portfolio
-                      </button>
-                    </SheetClose>
+              <button
+                onClick={() => scrollToSection("live-preview")}
+                className={`p-1.5 rounded-md transition-all duration-300 ${activeSection === "live-preview"
+                    ? "text-cyan-500 bg-cyan-50"
+                    : "text-gray-500 hover:text-cyan-500 hover:bg-gray-50"
+                  }`}
+                title="Preview"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
 
-                    {/* Mobile Auth Section - Login & Sign Up */}
-                    <div className="mt-6 flex flex-col gap-3">
-                      <SheetClose asChild>
-                        <Button
-                          onClick={() => navigate('/login')}
-                          variant="outline"
-                          className="w-full border-[#64ffda] text-gray-700 hover:bg-[#64ffda]/10 hover:text-[#0a192f]"
-                        >
-                          <LogIn className="w-4 h-4 mr-2" />
-                          Login
-                        </Button>
-                      </SheetClose>
-                      <SheetClose asChild>
-                        <Button
-                          onClick={() => navigate('/signup')}
-                          className="w-full bg-[#64ffda] text-[#0a192f] hover:bg-[#64ffda]/90 font-semibold"
-                        >
-                          <UserPlus className="w-4 h-4 mr-2" />
-                          Sign Up
-                        </Button>
-                      </SheetClose>
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
+              <button
+                onClick={() => scrollToSection("faq")}
+                className={`p-1.5 rounded-md transition-all duration-300 ${activeSection === "faq"
+                    ? "text-cyan-500 bg-cyan-50"
+                    : "text-gray-500 hover:text-cyan-500 hover:bg-gray-50"
+                  }`}
+                title="FAQ"
+              >
+                <HelpCircle className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => setPricingOpen(true)}
+                className="p-1.5 rounded-md text-gray-500 hover:text-cyan-500 hover:bg-gray-50 transition-all duration-300"
+                title="Pricing"
+              >
+                <DollarSign className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => scrollToSection("contact")}
+                className="p-1.5 ml-0.5 rounded-full bg-cyan-500 text-white hover:bg-cyan-600 hover:shadow-lg hover:shadow-cyan-500/50 transition-all duration-300 hover:scale-110"
+                title="Contact"
+              >
+                <Phone className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -223,9 +254,35 @@ const EnhancedNavbar = () => {
 
       {/* Pricing Modal */}
       <PricingModal open={pricingOpen} onOpenChange={setPricingOpen} />
+
+      {/* Animation Keyframes */}
+      <style>{`
+        @keyframes slideInRight {
+          from {
+            opacity: 0;
+            transform: translateX(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        
+        .animate-fade-in {
+          animation: fade-in 0.5s ease-out;
+        }
+      `}</style>
     </>
   );
 };
 
 export default EnhancedNavbar;
-

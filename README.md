@@ -1,6 +1,11 @@
 # Lumos Digital Ascent
 
-Modern marketing site for Lumos Agency, highlighting services, process, portfolio highlights, and a lead-capture form with complete authentication system.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg)](https://vitejs.dev/)
+
+Modern marketing website for Lumos Agency, featuring a complete authentication system, customer management dashboard, creative studio, and analytics platform.
 
 ## 🔐 Security Notice
 
@@ -26,100 +31,162 @@ Modern marketing site for Lumos Agency, highlighting services, process, portfoli
 
 **هذه القواعد صارمة ويجب اتباعها في كل إضافة جديدة!**
 
-## Tech Stack
+## ✨ Features
 
-- Vite + React 18 + TypeScript
-- Tailwind CSS with a custom design system
-- Radix UI primitives via shadcn/ui
-- React Query, React Router, Sonner toasts, EmailJS (client-side)
+- 🎨 **Modern Marketing Site** - Beautiful, responsive landing page with service showcase
+- 🔐 **Complete Authentication** - Login, signup, password reset, and session management
+- 👥 **Customer Management** - Full CRM with client tracking and analytics
+- 🎭 **Creative Studio** - Project management and creative workflow tools
+- 📊 **Business Intelligence** - Analytics dashboard with insights and reporting
+- 📱 **Fully Responsive** - Optimized for mobile, tablet, and desktop
+- 🌙 **Dark Mode Support** - Built-in theme switching
+- ⚡ **High Performance** - Built with Vite for blazing-fast development and builds
 
-## Getting Started
+## 🛠️ Tech Stack
+
+- **Frontend Framework**: React 18 + TypeScript
+- **Build Tool**: Vite 7
+- **Styling**: Tailwind CSS with custom design system
+- **UI Components**: Radix UI primitives via shadcn/ui
+- **Backend/Database**: Supabase (PostgreSQL, Auth, Storage)
+- **State Management**: React Query (TanStack Query)
+- **Routing**: React Router v6
+- **Forms**: React Hook Form + Zod validation
+- **Animations**: Framer Motion
+- **Notifications**: Sonner toasts
+- **Email**: EmailJS (client-side)
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
-- npm or bun
+- Node.js 18 or higher
+- npm or bun package manager
 - Supabase account
 
 ### Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
 
 ```sh
-git clone <your-repo-url>
-cd lumos-digital-ascent-main
+git clone https://github.com/George12345567/lumos-digital-ascent.git
+cd lumos-digital-ascent
 ```
 
-2. Install dependencies:
+2. **Install dependencies:**
 
 ```sh
 npm install
 ```
 
-3. Set up environment variables:
+3. **Set up environment variables:**
 
 ```sh
 cp .env.example .env
 ```
 
-4. Edit `.env` file with your credentials:
+4. **Configure your `.env` file with your credentials:**
 
 ```env
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_anon_key
 VITE_SUPABASE_SERVICE_KEY=your_service_key
 VITE_MASTER_ADMIN_EMAIL=your_admin_email
+VITE_EMAILJS_PUBLIC_KEY=your_public_key
+VITE_EMAILJS_SERVICE_ID=your_service_id
+VITE_EMAILJS_TEMPLATE_ID=your_template_id
 ```
 
-5. Run the development server:
+5. **Run the development server:**
 
 ```sh
-## Documentation
-
-- 📋 [CODING_GUIDELINES.md](./CODING_GUIDELINES.md) - القواعد الصارمة للبرمجة
-- 🏗️ [ARCHITECTURE.md](./ARCHITECTURE.md) - بنية المشروع
-- 🔐 [AUTH_SETUP.md](./AUTH_SETUP.md) - إعداد نظام المصادقة
-- ✅ [AUTH_FIXES.md](./AUTH_FIXES.md) - إصلاحات نظام المصادقة
-- 📊 [IMPROVEMENTS_REPORT.md](./IMPROVEMENTS_REPORT.md) - تقرير المشاكل والتحسينات
-- 🛡️ [SECURITY.md](./SECURITY.md) - ملاحظات أمنية مهمة
-- 📖 [QUICK_START_AUTH.md](./QUICK_START_AUTH.md) - دليل سريع للمصادقة
-
-## Deployment
+npm run dev
 ```
 
-The dev server runs at `http://localhost:5173` by default.
+The dev server will start at `http://localhost:5173` by default.
 
-## Available Scripts
+## 📜 Available Scripts
 
-- `npm run dev` – start the Vite dev server
-- `npm run build` – build the production bundle
-- `npm run preview` – preview the production build locally
-- `npm run lint` – run ESLint across the repo
+- `npm run dev` – Start the Vite development server
+- `npm run build` – Build the production bundle
+- `npm run preview` – Preview the production build locally
+- `npm run lint` – Run ESLint across the repository
 
-## Project Structure
+## 📁 Project Structure
 
+```
+src/
+├── components/       # Shared UI components
+│   ├── layout/      # Layout components (Header, Footer, etc.)
+│   ├── shared/      # Reusable components
+│   └── ui/          # shadcn/ui components
+├── features/        # Feature-based organization
+│   ├── auth/        # Authentication features
+│   ├── dashboard/   # Dashboard features
+│   └── ...
+├── pages/           # Route pages
+├── hooks/           # Custom React hooks
+├── types/           # TypeScript type definitions
+├── config/          # Configuration files
+├── lib/             # Library integrations
+├── services/        # API services
+└── utils/           # Utility functions
+```
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed structure and guidelines.
+
+## 📚 Documentation
+
+- 📋 [CODING_GUIDELINES.md](./CODING_GUIDELINES.md) - Strict coding standards
+- 🏗️ [ARCHITECTURE.md](./ARCHITECTURE.md) - Project architecture
+- 🔐 [SECURITY.md](./SECURITY.md) - Security considerations
+- 📖 [QUICK_START_GUIDE.md](./QUICK_START_GUIDE.md) - Quick start guide
+- 👥 [CUSTOMER_SYSTEM_GUIDE.md](./CUSTOMER_SYSTEM_GUIDE.md) - Customer management guide
+- 💾 [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) - Database setup instructions
+
+## 🎨 Customization
+
+- **Design System**: Colors, typography, and utilities are defined in `src/index.css`
+- **Components**: Shared components live in `src/components/`
 - **Features**: Organized by functionality in `src/features/`
-- **Components**: Shared components in `src/components/` (layout, shared, ui)
-- **Pages**: Route pages in `src/pages/`
-- **Hooks**: Custom hooks in `src/hooks/`
-- **Types**: TypeScript definitions in `src/types/`
-- **Config**: Environment configuration in `src/config/`
+- **Contact Form**: Uses EmailJS - configure environment variables in `.env`
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed structure.
+## 🚢 Deployment
 
-## Customization Notes
-
-- Colors, typography, and helper utilities live in `src/index.css`.
-- Landing page sections are in `src/features/` and composed in `src/pages/Index.tsx`.
-- The contact form uses EmailJS. Configure environment variables in `.env` file (see `.env.example`).
-
-## Deployment
-
-Any static hosting platform that supports Vite builds (e.g., Vercel, Netlify, GitHub Pages) will work:
+The project can be deployed to any static hosting platform that supports Vite builds (Vercel, Netlify, GitHub Pages, etc.):
 
 ```sh
 npm run build
-# deploy the contents of the generated dist/ folder
+# Deploy the contents of the dist/ folder
 ```
 
-Make sure environment-specific secrets (EmailJS, analytics, etc.) are configured with your hosting provider rather than hard-coded in the repo.
+**Important:** Configure environment variables with your hosting provider. Never commit secrets to the repository.
+
+### Vercel Deployment
+
+A `vercel.json` configuration file is included for easy Vercel deployment with proper routing.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our coding guidelines before submitting pull requests:
+
+1. Follow the strict rules in [CODING_GUIDELINES.md](./CODING_GUIDELINES.md)
+2. Keep files under 500 lines (recommended: 300 lines)
+3. Use path aliases (`@/`) for imports
+4. No duplicate code - create reusable components/hooks
+5. Test your changes thoroughly
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [React](https://reactjs.org/) and [Vite](https://vitejs.dev/)
+- UI components from [shadcn/ui](https://ui.shadcn.com/)
+- Backend powered by [Supabase](https://supabase.com/)
+- Styled with [Tailwind CSS](https://tailwindcss.com/)
+
+---
+
+**Repository**: [https://github.com/George12345567/lumos-digital-ascent](https://github.com/George12345567/lumos-digital-ascent)

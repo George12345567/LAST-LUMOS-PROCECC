@@ -428,7 +428,9 @@ SELECT user_id, customer_email FROM public.subscriptions;
 
 ---
 
-## 📊 ADMIN FEATURES (TODO)
+## 📊 ADMIN FEATURES (Future Enhancements)
+
+Additional admin features are planned for future releases:
 
 للمستقبل، ممكن تضيف للـ Admin Dashboard:
 

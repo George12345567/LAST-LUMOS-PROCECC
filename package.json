@@ -1,8 +1,30 @@
 {
-  "name": "vite_react_shadcn_ts",
-  "private": true,
-  "version": "0.0.0",
+  "name": "lumos-digital-ascent",
+  "private": false,
+  "version": "1.0.0",
   "type": "module",
+  "description": "Modern marketing website for Lumos Agency with complete authentication system, customer management, and creative studio features",
+  "author": "Lumos Agency",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/George12345567/lumos-digital-ascent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/George12345567/lumos-digital-ascent/issues"
+  },
+  "homepage": "https://github.com/George12345567/lumos-digital-ascent#readme",
+  "keywords": [
+    "marketing",
+    "agency",
+    "portfolio",
+    "react",
+    "typescript",
+    "vite",
+    "tailwindcss",
+    "supabase",
+    "authentication"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -80,7 +102,6 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
-    "lovable-tagger": "^1.1.11",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",

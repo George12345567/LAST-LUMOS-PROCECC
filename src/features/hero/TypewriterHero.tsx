@@ -1,19 +1,34 @@
-import { useState, useEffect, useMemo } from "react";
-import { X } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Sparkles, Lock, User, ShieldCheck, ArrowLeft } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from 'sonner';
 
 const TypewriterHero = () => {
     const navigate = useNavigate();
-    const { role } = useAuth();
     const words = ["Websites", "Experiences", "Brands"];
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [currentText, setCurrentText] = useState("");
     const [isDeleting, setIsDeleting] = useState(false);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [loginStep, setLoginStep] = useState<'credentials' | 'security'>('credentials');
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    const [passwordError, setPasswordError] = useState("");
+    const [securityAnswer, setSecurityAnswer] = useState("");
+    const [loginError, setLoginError] = useState("");
+    const [clientData, setClientData] = useState<any>(null);
+    const [loginLoading, setLoginLoading] = useState(false);
 
     // Generate stars data once for better performance
     const starsData = useMemo(() => {
@@ -92,10 +107,87 @@ const TypewriterHero = () => {
         }
     };
 
-    const handlePasswordSubmit = (e: React.FormEvent) => {
+    const handleLoginSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Always show error for any password
-        setPasswordError("كلمة السر غير صحيحة. الرجاء المحاولة مرة أخرى.");
+        setLoginError("");
+
+        if (loginStep === 'credentials') {
+            setLoginLoading(true);
+            try {
+                // Query Supabase clients table
+                const { data: client, error } = await supabaseAdmin
+                    .from('clients')
+                    .select('*')
+                    .eq('username', username)
+                    .eq('password', password)
+                    .single();
+
+                if (error || !client) {
+                    setLoginError("اسم المستخدم أو كلمة السر غير صحيحة");
+                    setLoginLoading(false);
+                    return;
+                }
+
+                // User found! Check if security question is set
+                if (client.security_question) {
+                    // Has security question - need step 2
+                    setClientData(client);
+                    setLoginStep('security');
+                } else {
+                    // No security question - login directly
+                    handleSuccessfulLogin(client);
+                }
+            } catch (error: any) {
+                console.error('Login error:', error);
+                setLoginError("حدث خطأ. حاول مرة أخرى.");
+            } finally {
+                setLoginLoading(false);
+            }
+        } else if (loginStep === 'security') {
+            // Verify security answer
+            if (securityAnswer.toLowerCase().trim() === clientData.security_answer.toLowerCase().trim()) {
+                handleSuccessfulLogin(clientData);
+            } else {
+                setLoginError("إجابة سؤال الأمان غير صحيحة");
+            }
+        }
+    };
+
+    const handleSuccessfulLogin = (client: any) => {
+        // Save session
+        sessionStorage.setItem('client', JSON.stringify(client));
+        sessionStorage.setItem('isAuthenticated', 'true');
+
+        // Redirect based on username
+        if (client.username === 'GEORGE') {
+            // Admin redirect
+            toast.success('🎉 مرحباً Admin!');
+            setTimeout(() => {
+                navigate('/dashboard');
+            }, 500);
+        } else {
+            // Regular client redirect
+            toast.success(`🎉 مرحباً ${client.company_name || client.username}!`);
+            setTimeout(() => {
+                navigate('/clients/dashboard');
+            }, 500);
+        }
+    };
+
+    const handleBackToCredentials = () => {
+        setLoginStep('credentials');
+        setSecurityAnswer('');
+        setLoginError('');
+    };
+
+    const handleCloseModal = () => {
+        setShowPasswordModal(false);
+        setLoginStep('credentials');
+        setUsername('');
+        setPassword('');
+        setSecurityAnswer('');
+        setLoginError('');
+        setClientData(null);
     };
 
     return (
@@ -268,19 +360,6 @@ const TypewriterHero = () => {
                         <span className="absolute inset-[2px] rounded-full bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                     </button>
 
-                    {/* Admin Dashboard Button - Only visible for admins */}
-                    {role === 'admin' && (
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="px-6 sm:px-8 lg:px-10 py-3 sm:py-3.5 lg:py-4 rounded-full text-sm sm:text-base lg:text-lg font-bold relative group border-2 border-amber-500 text-amber-400 hover:bg-amber-500/20 transition-all shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:shadow-[0_0_30px_rgba(251,191,36,0.5)]"
-                        >
-                            <span className="relative z-10 flex items-center gap-2">
-                                <span>⚡</span>
-                                <span>Admin Dashboard</span>
-                            </span>
-                        </button>
-                    )}
-
                     {/* Existing Clients Button */}
                     <button
                         onClick={() => setShowPasswordModal(true)}
@@ -302,54 +381,177 @@ const TypewriterHero = () => {
             {/* Password Modal */}
             {showPasswordModal && (
                 <div
-                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
-                    onClick={() => setShowPasswordModal(false)}
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+                    onClick={handleCloseModal}
                 >
                     <div
                         className="bg-background rounded-2xl shadow-2xl max-w-md w-full p-8 relative animate-fade-in-up border border-primary/20"
                         onClick={(e) => e.stopPropagation()}
                     >
+                        {/* Close Button */}
                         <button
-                            onClick={() => setShowPasswordModal(false)}
+                            onClick={handleCloseModal}
                             className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
                         >
-                            <X className="w-5 h-5" />
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
 
-                        <h2 className="text-2xl font-bold text-foreground mb-2">عملائنا الحاليين</h2>
-                        <p className="text-muted-foreground mb-6 text-sm">
-                            الرجاء إدخال كلمة السر للوصول إلى لوحة التحكم
-                        </p>
+                        {/* Progress Steps */}
+                        <div className="flex items-center justify-center gap-2 mb-6">
+                            <div className={`w-2 h-2 rounded-full transition-all ${loginStep === 'credentials' ? 'bg-primary w-8' : 'bg-primary'
+                                }`} />
+                            <div className={`w-2 h-2 rounded-full transition-all ${loginStep === 'security' ? 'bg-primary w-8' : 'bg-muted'
+                                }`} />
+                        </div>
 
-                        <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-foreground mb-2">
-                                    كلمة السر
-                                </label>
-                                <input
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => {
-                                        setPassword(e.target.value);
-                                        setPasswordError(""); // Clear error on typing
-                                    }}
-                                    className="w-full px-4 py-3 bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                                    placeholder="أدخل كلمة السر"
-                                    dir="rtl"
-                                />
-                                {passwordError && (
-                                    <p className="text-red-500 text-sm mt-2 animate-fade-in">
-                                        {passwordError}
-                                    </p>
+                        {/* Header */}
+                        <div className="text-center mb-6">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
+                                {loginStep === 'credentials' ? (
+                                    <User className="w-8 h-8 text-primary" />
+                                ) : (
+                                    <ShieldCheck className="w-8 h-8 text-primary" />
                                 )}
                             </div>
+                            <h3 className="text-2xl font-bold mb-2">
+                                {loginStep === 'credentials' ? 'تسجيل الدخول' : 'التحقق الأمني'}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                                {loginStep === 'credentials'
+                                    ? 'أدخل بيانات حسابك'
+                                    : 'أجب على سؤال الأمان'}
+                            </p>
+                        </div>
 
-                            <button
-                                type="submit"
-                                className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-bold hover:bg-primary/90 transition-colors"
-                            >
-                                دخول
-                            </button>
+                        <form onSubmit={handleLoginSubmit} className="space-y-4">
+                            {loginStep === 'credentials' ? (
+                                <>
+                                    {/* Username */}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="username" className="text-sm font-semibold">
+                                            اسم المستخدم
+                                        </Label>
+                                        <div className="relative">
+                                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                                            <Input
+                                                id="username"
+                                                type="text"
+                                                value={username}
+                                                onChange={(e) => {
+                                                    setUsername(e.target.value);
+                                                    setLoginError('');
+                                                }}
+                                                className="pl-10 bg-secondary/50 border-border"
+                                                placeholder="أدخل اسم المستخدم"
+                                                required
+                                                autoFocus
+                                                disabled={loginLoading}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Password */}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="password" className="text-sm font-semibold">
+                                            كلمة السر
+                                        </Label>
+                                        <div className="relative">
+                                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                                            <Input
+                                                id="password"
+                                                type="password"
+                                                value={password}
+                                                onChange={(e) => {
+                                                    setPassword(e.target.value);
+                                                    setLoginError('');
+                                                }}
+                                                className="pl-10 bg-secondary/50 border-border"
+                                                placeholder="أدخل كلمة السر"
+                                                required
+                                                disabled={loginLoading}
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Security Question Display */}
+                                    <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg mb-4">
+                                        <p className="text-sm font-semibold text-primary mb-1">
+                                            سؤال الأمان:
+                                        </p>
+                                        <p className="text-foreground font-medium">
+                                            {clientData?.security_question}
+                                        </p>
+                                    </div>
+
+                                    {/* Security Answer */}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="security-answer" className="text-sm font-semibold">
+                                            الإجابة
+                                        </Label>
+                                        <div className="relative">
+                                            <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                                            <Input
+                                                id="security-answer"
+                                                type="text"
+                                                value={securityAnswer}
+                                                onChange={(e) => {
+                                                    setSecurityAnswer(e.target.value);
+                                                    setLoginError('');
+                                                }}
+                                                className="pl-10 bg-secondary/50 border-border"
+                                                placeholder="أدخل الإجابة"
+                                                required
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Error Message */}
+                            {loginError && (
+                                <div className="p-3 bg-destructive/10 border border-destructive/50 rounded text-destructive text-sm animate-fade-in">
+                                    {loginError}
+                                </div>
+                            )}
+
+                            {/* Buttons */}
+                            <div className="flex gap-3 pt-2">
+                                {loginStep === 'security' && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleBackToCredentials}
+                                        className="flex-1"
+                                    >
+                                        <ArrowLeft className="w-4 h-4 mr-2" />
+                                        رجوع
+                                    </Button>
+                                )}
+                                <Button
+                                    type="submit"
+                                    className="flex-1 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                                    disabled={loginLoading}
+                                >
+                                    {loginLoading ? (
+                                        <span className="flex items-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            جاري التحقق...
+                                        </span>
+                                    ) : loginStep === 'credentials' ? (
+                                        <span className="flex items-center gap-2">
+                                            التالي
+                                            <ArrowLeft className="w-4 h-4 rotate-180" />
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center gap-2">
+                                            🚀 تسجيل الدخول
+                                        </span>
+                                    )}
+                                </Button>
+                            </div>
                         </form>
                     </div>
                 </div>
