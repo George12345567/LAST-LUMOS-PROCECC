@@ -36,7 +36,7 @@ const getTimestamp = (): string => {
 /**
  * Format log message with optional timestamp and level
  */
-const formatMessage = (level: LogLevel, args: any[]): any[] => {
+const formatMessage = (level: LogLevel, args: unknown[]): unknown[] => {
     const parts: string[] = [];
 
     if (config.showTimestamp) {
@@ -57,7 +57,7 @@ export const logger = {
     /**
      * Log general information (development only)
      */
-    log: (...args: any[]) => {
+    log: (...args: unknown[]) => {
         if (config.enabled) {
             console.log(...formatMessage('log', args));
         }
@@ -66,7 +66,7 @@ export const logger = {
     /**
      * Log informational messages (development only)
      */
-    info: (...args: any[]) => {
+    info: (...args: unknown[]) => {
         if (config.enabled) {
             console.info(...formatMessage('info', args));
         }
@@ -75,21 +75,21 @@ export const logger = {
     /**
      * Log warning messages (always shown)
      */
-    warn: (...args: any[]) => {
+    warn: (...args: unknown[]) => {
         console.warn(...formatMessage('warn', args));
     },
 
     /**
      * Log error messages (always shown)
      */
-    error: (...args: any[]) => {
+    error: (...args: unknown[]) => {
         console.error(...formatMessage('error', args));
     },
 
     /**
      * Log debug messages (development only)
      */
-    debug: (...args: any[]) => {
+    debug: (...args: unknown[]) => {
         if (config.enabled) {
             console.debug(...formatMessage('debug', args));
         }
@@ -116,7 +116,7 @@ export const logger = {
     /**
      * Log a table (development only)
      */
-    table: (data: any) => {
+    table: (data: unknown) => {
         if (config.enabled) {
             console.table(data);
         }
@@ -160,7 +160,7 @@ export const logger = {
 export const logError = (
     error: Error | unknown,
     context?: string,
-    additionalData?: Record<string, any>
+    additionalData?: Record<string, unknown>
 ) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
@@ -188,35 +188,35 @@ export const logError = (
  * Auth-specific logger with emoji prefixes
  */
 export const authLogger = {
-    init: (...args: any[]) => logger.log('🔐', ...args),
-    login: (...args: any[]) => logger.log('🔑', ...args),
-    logout: (...args: any[]) => logger.log('🚪', ...args),
-    signup: (...args: any[]) => logger.log('📝', ...args),
-    success: (...args: any[]) => logger.log('✅', ...args),
-    warning: (...args: any[]) => logger.warn('⚠️', ...args),
-    error: (...args: any[]) => logger.error('❌', ...args),
-    info: (...args: any[]) => logger.info('ℹ️', ...args),
-    masterKey: (...args: any[]) => logger.log('⚡', ...args),
+    init: (...args: unknown[]) => logger.log('🔐', ...args),
+    login: (...args: unknown[]) => logger.log('🔑', ...args),
+    logout: (...args: unknown[]) => logger.log('🚪', ...args),
+    signup: (...args: unknown[]) => logger.log('📝', ...args),
+    success: (...args: unknown[]) => logger.log('✅', ...args),
+    warning: (...args: unknown[]) => logger.warn('⚠️', ...args),
+    error: (...args: unknown[]) => logger.error('❌', ...args),
+    info: (...args: unknown[]) => logger.info('ℹ️', ...args),
+    masterKey: (...args: unknown[]) => logger.log('⚡', ...args),
 };
 
 /**
  * API-specific logger
  */
 export const apiLogger = {
-    request: (method: string, url: string, data?: any) => {
+    request: (method: string, url: string, data?: unknown) => {
         logger.group(`📤 API Request: ${method} ${url}`);
         if (data) logger.log('Data:', data);
         logger.groupEnd();
     },
 
-    response: (method: string, url: string, status: number, data?: any) => {
+    response: (method: string, url: string, status: number, data?: unknown) => {
         const emoji = status >= 200 && status < 300 ? '✅' : '❌';
         logger.group(`${emoji} API Response: ${method} ${url} (${status})`);
         if (data) logger.log('Data:', data);
         logger.groupEnd();
     },
 
-    error: (method: string, url: string, error: any) => {
+    error: (method: string, url: string, error: unknown) => {
         logger.group(`🔴 API Error: ${method} ${url}`);
         logger.error('Error:', error);
         logger.groupEnd();

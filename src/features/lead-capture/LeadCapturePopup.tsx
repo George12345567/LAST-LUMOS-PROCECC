@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, MapPin, CheckCircle } from "lucide-react";
+import { Loader2, MapPin, CheckCircle, MessageCircle, X } from "lucide-react";
 import { motion } from "framer-motion";
 import emailjs from '@emailjs/browser';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -14,6 +14,10 @@ import { toast } from "sonner";
 import { useGeolocation } from "@/hooks";
 import { collectBrowserData } from "@/lib/collectBrowserData";
 import { saveContact } from "@/services/db";
+import { useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { VerifiedPhoneInput } from "@/components/shared/VerifiedPhoneInput";
 
 const formSchema = z.object({
   name: z.string().optional(),
@@ -26,22 +30,34 @@ type FormValues = z.infer<typeof formSchema>;
 const LeadCapturePopup = () => {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [capturedPhone, setCapturedPhone] = useState('');
   const firstInputRef = useRef<HTMLInputElement>(null);
   const { location, loading: locationLoading, requestLocation } = useGeolocation();
+  const routeLocation = useLocation();
+  const { isAuthenticated } = useAuth();
+  const { isArabic, t } = useLanguage();
+
+  // Pages where the popup should NOT appear
+  const blockedPaths = ['/dashboard', '/clients/profile', '/client-login', '/client-signup', '/forgot-password'];
+  const isBlockedPage = blockedPaths.some(p => routeLocation.pathname.startsWith(p));
 
   useEffect(() => {
+    // Don't show on protected/blocked pages or for authenticated users
+    if (isBlockedPage || isAuthenticated) return;
+
     const hasShown = sessionStorage.getItem("lumos_lead_popup_shown");
     if (hasShown) return;
 
     const timer = setTimeout(() => {
       setOpen(true);
       sessionStorage.setItem("lumos_lead_popup_shown", "true");
-      // Request location when popup opens
       requestLocation();
-    }, 60000); // 60 seconds
+    }, 300000); // 5 minutes
 
     return () => clearTimeout(timer);
-  }, [requestLocation]);
+  }, [requestLocation, isBlockedPage, isAuthenticated]);
 
   // Auto-focus first input when dialog opens
   useEffect(() => {
@@ -61,17 +77,17 @@ const LeadCapturePopup = () => {
     },
   });
 
-  const sendDataToEmail = async (action: 'submit' | 'cancel') => {
+  const sendDataToEmail = async () => {
     const formData = form.getValues();
     const browserData = collectBrowserData();
 
     const emailData = {
       form_type: 'Lead Capture Popup',
-      action: action === 'submit' ? 'إرسال' : 'إلغاء',
-      name: formData.name || 'غير محدد',
-      phone: formData.phone || 'غير محدد',
-      description: formData.description || 'غير محدد',
-      location: location || 'لم يتم السماح بالموقع',
+      action: 'Submit',
+      name: formData.name || 'Not provided',
+      phone: formData.phone || 'Not provided',
+      description: formData.description || 'Not provided',
+      location: location || 'Location not shared',
       browser: browserData.browser,
       os: browserData.os,
       device_type: browserData.deviceType,
@@ -83,8 +99,6 @@ const LeadCapturePopup = () => {
       user_agent: browserData.userAgent,
     };
 
-    console.log('📧 Sending data to email:', emailData);
-
     // Send via EmailJS
     try {
       await emailjs.send(
@@ -93,28 +107,19 @@ const LeadCapturePopup = () => {
         emailData,
         'QSbdI14b9C7c3rBmg'
       );
-      console.log('✅ Email sent successfully!');
     } catch (error) {
-      console.error('❌ Email send failed:', error);
+      // Silent fail — email is supplementary
     }
 
-    // Save to Supabase (only on submit, not cancel)
-    if (action === 'submit') {
-      try {
-        const supabaseResult = await saveContact({
-          name: formData.name || 'غير محدد',
-          phone: formData.phone || 'غير محدد',
-          message: formData.description || 'Lead capture popup submission',
-        });
-
-        if (supabaseResult.success) {
-          console.log('✅ Data saved to Supabase! Contact ID:', supabaseResult.data?.id);
-        } else {
-          console.error('❌ Supabase save failed:', supabaseResult.error);
-        }
-      } catch (error) {
-        console.error('❌ Supabase error:', error);
-      }
+    // Save to Supabase
+    try {
+      await saveContact({
+        name: formData.name || 'Not provided',
+        phone: formData.phone || 'Not provided',
+        message: formData.description || 'Lead capture popup submission',
+      });
+    } catch (error) {
+      // Silent fail — email is primary
     }
   };
 
@@ -122,132 +127,155 @@ const LeadCapturePopup = () => {
     setIsSubmitting(true);
 
     // Send data to email & save to Supabase
-    await sendDataToEmail('submit');
+    await sendDataToEmail();
 
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
-    toast.success("شكراً! سنتواصل معك قريباً 🚀");
-    setOpen(false);
-    setIsSubmitting(false);
-    form.reset();
+    setIsSuccess(true);
+    setTimeout(() => {
+      setOpen(false);
+      setIsSubmitting(false);
+      setIsSuccess(false);
+      form.reset();
+    }, 2000);
   };
 
-  const handleClose = async () => {
-    // Send data even when canceling (EmailJS only)
-    await sendDataToEmail('cancel');
+  const handleClose = () => {
+    // Privacy-respectful: Don't send any data on cancel
     setOpen(false);
   };
+
+  // Don't render on blocked pages
+  if (isBlockedPage || isAuthenticated) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="w-[95vw] max-w-md p-6 sm:p-8">
+      <DialogContent className="w-[95vw] max-w-md p-6 sm:p-8" dir={isArabic ? 'rtl' : 'ltr'}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
         >
-          <div className="text-center space-y-2 mb-6" dir="rtl">
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground">
-              هل يمكننا مساعدتك؟
-            </h2>
-            <p className="text-sm sm:text-base text-muted-foreground">
-              اترك بياناتك وسنتواصل معك قريباً
-            </p>
-          </div>
-
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-5"
-              dir="rtl"
-            >
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base">الاسم (اختياري)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="اسمك"
-                        {...field}
-                        ref={firstInputRef}
-                        autoComplete="name"
-                        className="h-12 text-base transition-all duration-200 focus:scale-[1.01]"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base">رقم الهاتف (اختياري)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="01xxxxxxxxx"
-                        {...field}
-                        type="tel"
-                        autoComplete="tel"
-                        inputMode="tel"
-                        className="h-12 text-base transition-all duration-200 focus:scale-[1.01]"
-                        dir="ltr"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base">الوصف (اختياري)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="أخبرنا عن فكرتك..."
-                        className="resize-none min-h-[100px] text-base transition-all duration-200 focus:scale-[1.01]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClose}
-                  className="h-12 text-base w-full sm:w-auto sm:flex-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  إلغاء
-                </Button>
-                <Button
-                  type="submit"
-                  className="h-12 text-base w-full sm:w-auto sm:flex-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <span className="flex items-center">
-                      <Loader2 className="ml-2 h-5 w-5 animate-spin" />
-                      جاري الإرسال...
-                    </span>
-                  ) : (
-                    "إرسال"
-                  )}
-                </Button>
+          {isSuccess ? (
+            <div className="text-center py-6">
+              <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-green-500" />
               </div>
-            </form>
-          </Form>
+              <h2 className="text-xl font-bold text-foreground mb-2">{t('شكرًا لك', 'Thank You!')}</h2>
+              <p className="text-muted-foreground text-sm">{t('سنتواصل معك قريبًا', 'We\'ll get in touch with you soon 🚀')}</p>
+            </div>
+          ) : (
+            <>
+              <div className="text-center space-y-2 mb-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <MessageCircle className="w-6 h-6 text-primary" />
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground">
+                  {t('هل يمكننا مساعدتك؟', 'Can We Help You?')}
+                </h2>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  {t('اترك بياناتك وسنتواصل معك قريبًا', 'Leave your details and we\'ll reach out shortly')}
+                </p>
+              </div>
+
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-5"
+                >
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base">{t('الاسم (اختياري)', 'Name (optional)')}</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder={t('اسمك', 'Your name')}
+                            {...field}
+                            ref={firstInputRef}
+                            autoComplete="name"
+                            className="h-12 text-base transition-all duration-200 focus:scale-[1.01]"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base">{t('رقم الهاتف (اختياري)', 'Phone Number (optional)')}</FormLabel>
+                        <FormControl>
+                          <VerifiedPhoneInput
+                            value={capturedPhone}
+                            onChange={(phone) => {
+                              setCapturedPhone(phone);
+                              field.onChange(phone);
+                            }}
+                            onVerify={(phone) => {
+                              setIsPhoneVerified(true);
+                              setCapturedPhone(phone);
+                              field.onChange(phone);
+                            }}
+                            isArabic={isArabic}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base">{t('احك لنا عن فكرتك (اختياري)', 'Tell us about your idea (optional)')}</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder={t('صف مشروعك أو فكرتك...', 'Describe your project or idea...')}
+                            className="resize-none min-h-[100px] text-base transition-all duration-200 focus:scale-[1.01]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleClose}
+                      className="h-12 text-base w-full sm:w-auto sm:flex-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      {t('لا شكرًا', 'No Thanks')}
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="h-12 text-base w-full sm:w-auto sm:flex-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <span className="flex items-center">
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          {t('جارٍ الإرسال...', 'Sending...')}
+                        </span>
+                      ) : (
+                        t('إرسال', 'Send')
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </>
+          )}
         </motion.div>
       </DialogContent>
     </Dialog>
@@ -255,3 +283,4 @@ const LeadCapturePopup = () => {
 };
 
 export default LeadCapturePopup;
+

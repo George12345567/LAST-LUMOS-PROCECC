@@ -35,10 +35,10 @@ export const submitContactForm = async (
             .from('contacts')
             .insert([
                 {
-                    name: formData.name || 'غير محدد',
-                    phone: formData.phone || 'غير محدد',
-                    message: formData.message || formData.description || 'غير محدد',
-                    location_url: locationUrl || 'لم يتم السماح بالموقع',
+                    name: formData.name || 'Not provided',
+                    phone: formData.phone || 'Not provided',
+                    message: formData.message || formData.description || 'Not provided',
+                    location_url: locationUrl || 'Location not shared',
                     status: 'new',
                     auto_collected_data: {
                         browser: browserData.browser,
@@ -74,7 +74,11 @@ export const submitContactForm = async (
                 {
                     contact_id: contactId,
                     device_type: browserData.deviceType,
+                    browser_vendor: browserData.browser,
+                    platform: browserData.platform,
                     screen_width: window.screen.width,
+                    screen_height: window.screen.height,
+                    referrer: browserData.referrer,
                     full_data: {
                         ...browserData,
                         form_type: formType,
@@ -92,7 +96,8 @@ export const submitContactForm = async (
             console.log('✅ Marketing data inserted for contact:', contactId);
         }
 
-        // Step 4: Insert into activity_log
+        // Step 4: Insert into activity_log (optional - table may not exist)
+        // Note: activity_log table needs to be created via SUPABASE_SETUP.md SQL
         const { error: logError } = await supabase
             .from('activity_log')
             .insert([

@@ -1,0 +1,36 @@
+═══════════════════════════════════════════════════════
+  SUPABASE DATABASE - WEBSTORM CONNECTION SETTINGS
+═══════════════════════════════════════════════════════
+
+⚠️  DO NOT USE LOCALHOST! Your database is in the cloud!
+
+───────────────────────────────────────────────────────
+  COPY THESE VALUES EXACTLY:
+───────────────────────────────────────────────────────
+
+Host:     db.hkiczkmdxldshooaelio.supabase.co
+Port:     5432
+User:     postgres
+Password: BNo2AkWyYR4zYQon
+Database: postgres
+SSL:      REQUIRED (enable in SSH/SSL tab, mode: require)
+
+───────────────────────────────────────────────────────
+  OR USE THIS JDBC URL:
+───────────────────────────────────────────────────────
+
+jdbc:postgresql://db.hkiczkmdxldshooaelio.supabase.co:5432/postgres
+
+───────────────────────────────────────────────────────
+  CRITICAL STEPS:
+───────────────────────────────────────────────────────
+
+1. Delete any existing connection that uses "localhost"
+2. Create NEW PostgreSQL data source
+3. Enter the values above
+4. Go to SSH/SSL tab → Enable SSL → Set mode to "require"
+5. Test Connection
+6. Apply & OK
+
+═══════════════════════════════════════════════════════
+

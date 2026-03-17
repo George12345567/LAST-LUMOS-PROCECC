@@ -8,52 +8,102 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Lumos Agency Light Theme */
-    --background: 0 0% 100%;
-    /* Pure White */
-    --foreground: 215 60% 20%;
-    /* Dark Navy Blue #1a2b4d */
+    /* Wizard's Green Dark Theme */
+    --background: 220 10% 8%;
+    /* Premium Dark Charcoal #121417 */
+    --foreground: 0 0% 100%;
+    /* Crisp Off-White */
 
-    --card: 0 0% 100%;
-    /* White for cards */
-    --card-foreground: 215 60% 20%;
+    --card: 220 10% 11%;
+    /* Sleek slightly lighter charcoal */
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 60% 20%;
+    --popover: 220 10% 11%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 188 100% 42%;
-    /* Light Blue/Turquoise #00bcd4 */
-    --primary-foreground: 0 0% 100%;
+    --primary: 150 100% 40%;
+    /* Vibrant Emerald Green */
+    --primary-foreground: 220 10% 8%;
+    /* Dark text for contrast */
 
-    --secondary: 0 0% 95%;
-    /* Light Grey #f2f2f2 */
-    --secondary-foreground: 215 60% 20%;
+    --secondary: 160 70% 18%;
+    /* Rich Forest Green */
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 0 0% 95%;
-    --muted-foreground: 215 30% 50%;
+    --muted: 150 20% 20%;
+    /* Muted Earthy Moss */
+    --muted-foreground: 150 15% 80%;
 
-    --accent: 188 100% 42%;
-    /* Turquoise accent */
-    --accent-foreground: 0 0% 100%;
+    --accent: 150 100% 40%;
+    --accent-foreground: 220 10% 8%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 98%;
-    --ring: 188 100% 42%;
+    --border: 150 20% 20%;
+    --input: 150 20% 20%;
+    --ring: 150 100% 40%;
 
     --radius: 0.75rem;
 
-    /* Glass effect variables - subtle for light theme */
-    --glass-bg: 0 0% 100% / 0.8;
-    --glass-border: 188 100% 42% / 0.1;
+    /* Glass effect variables - Dark Theme */
+    --glass-bg: 220 10% 9% / 0.75;
+    --glass-border: 150 100% 40% / 0.15;
 
-    /* Glow effect - minimal */
-    --glow-color: 188 100% 42%;
+    /* Glow effect */
+    --glow-color: 150 100% 40%;
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Portal design tokens */
+    --portal-space-xs: 0.25rem;
+    --portal-space-sm: 0.5rem;
+    --portal-space-md: 0.75rem;
+    --portal-space-lg: 1rem;
+    --portal-space-xl: 1.5rem;
+    --portal-radius-sm: 0.5rem;
+    --portal-radius-md: 0.75rem;
+    --portal-radius-lg: 1rem;
+    --portal-shadow-sm: 0 2px 10px rgba(2, 6, 23, 0.08);
+    --portal-shadow-md: 0 8px 26px rgba(2, 6, 23, 0.14);
+    --portal-shadow-lg: 0 14px 38px rgba(2, 6, 23, 0.18);
+    --portal-motion-fast: 140ms cubic-bezier(0.4, 0, 0.2, 1);
+    --portal-motion-base: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    --portal-motion-slow: 340ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .theme-default {
+    --background: 220 10% 8%;
+    --foreground: 0 0% 100%;
+    --card: 220 10% 11%;
+    --card-foreground: 0 0% 100%;
+    --muted: 220 10% 18%;
+    --muted-foreground: 220 10% 72%;
+    --border: 220 10% 22%;
+    --ring: 190 90% 52%;
+  }
+
+  .theme-brand {
+    --background: 222 35% 7%;
+    --foreground: 210 30% 97%;
+    --card: 224 29% 10%;
+    --card-foreground: 210 30% 97%;
+    --muted: 222 25% 16%;
+    --muted-foreground: 213 18% 74%;
+    --border: 220 24% 20%;
+    --ring: 186 100% 42%;
+  }
+
+  .theme-high-contrast {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 100%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 88%;
+    --border: 0 0% 34%;
+    --ring: 52 100% 50%;
   }
 }
 
@@ -66,30 +116,100 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
     font-family: 'Poppins', sans-serif;
     overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   html {
     scroll-behavior: smooth;
+    color-scheme: dark;
+    scrollbar-gutter: stable both-edges;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
+
+/* Optimize below-the-fold section rendering for smoother scroll. */
+.scroll-section-optimized {
+  content-visibility: auto;
+  contain-intrinsic-size: 900px;
+}
+
+/*
+ * SAFETY NET: Ensure toast/notification containers never block page interaction.
+ * Sonner renders a <section> with z-index: 999999999 (!) that can intercept
+ * pointer events across the entire viewport when no toasts are visible.
+ * Individual toasts opt back in with pointer-events: auto via [data-sonner-toast].
+ */
+section[data-sonner-toaster] {
+  pointer-events: none !important;
+}
+
+section[data-sonner-toaster] [data-sonner-toast] {
+  pointer-events: auto !important;
 }
 
 @layer utilities {
 
-  /* Clean card effect for light theme */
-  .glass-card {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  .portal-elevation-sm {
+    box-shadow: var(--portal-shadow-sm);
   }
 
-  /* Minimal glow effects - only for logo */
+  .portal-elevation-md {
+    box-shadow: var(--portal-shadow-md);
+  }
+
+  .portal-elevation-lg {
+    box-shadow: var(--portal-shadow-lg);
+  }
+
+  .portal-radius-sm {
+    border-radius: var(--portal-radius-sm);
+  }
+
+  .portal-radius-md {
+    border-radius: var(--portal-radius-md);
+  }
+
+  .portal-radius-lg {
+    border-radius: var(--portal-radius-lg);
+  }
+
+  .portal-motion-fast {
+    transition: all var(--portal-motion-fast);
+  }
+
+  .portal-motion-base {
+    transition: all var(--portal-motion-base);
+  }
+
+  .portal-motion-slow {
+    transition: all var(--portal-motion-slow);
+  }
+
+  /* Sleek glass card for Wizard's Green theme */
+  .glass-card {
+    background: hsla(220, 10%, 11%, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid hsla(150, 100%, 40%, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 1px hsla(150, 100%, 40%, 0.05);
+  }
+
+  /* Magical glow effects for logo and accents */
   .glow-text {
     color: hsl(var(--primary));
-    font-weight: 700;
+    font-weight: bold;
+    text-shadow: 0 0 12px hsla(150, 100%, 40%, 0.4);
   }
 
   .glow-border {
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.2);
+    box-shadow: 0 0 0 1px hsla(150, 100%, 40%, 0.3);
   }
 
   .glow-border-hover {
@@ -97,22 +217,30 @@ All colors MUST be HSL.
   }
 
   .glow-border-hover:hover {
-    box-shadow: 0 4px 16px hsl(var(--primary) / 0.15);
-    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 0 20px hsla(150, 100%, 40%, 0.3);
+    border-color: hsla(150, 100%, 40%, 0.6);
     transform: translateY(-3px);
   }
 
-  /* Clean button with subtle glow on hover */
+  /* Vibrant Emerald Green button */
   .btn-glow {
     background: hsl(var(--primary));
     color: hsl(var(--primary-foreground));
-    box-shadow: 0 2px 8px hsl(var(--primary) / 0.2);
+    box-shadow: 0 4px 15px hsla(150, 100%, 40%, 0.3);
     transition: var(--transition-smooth);
+    border: 1px solid hsla(150, 100%, 60%, 0.2);
   }
 
   .btn-glow:hover {
-    box-shadow: 0 4px 16px hsl(var(--primary) / 0.3);
+    background: hsl(160, 70%, 18%);
+    color: hsl(150, 40%, 95%);
+    box-shadow: 0 8px 25px hsla(150, 100%, 40%, 0.4);
+    border-color: hsl(var(--primary));
     transform: translateY(-2px);
+  }
+
+  .btn-glow:active {
+    transform: scale(0.95);
   }
 
   .link-underline {
@@ -428,6 +556,13 @@ All colors MUST be HSL.
   }
 }
 
+@keyframes scrollHintFade {
+  0%   { opacity: 0;    transform: translateY(-6px); }
+  40%  { opacity: 1;    transform: translateY(0);    }
+  70%  { opacity: 1;    transform: translateY(0);    }
+  100% { opacity: 0;    transform: translateY(6px);  }
+}
+
 .animate-orb {
   animation: drift 12s ease-in-out infinite;
 }
@@ -451,6 +586,7 @@ All colors MUST be HSL.
       transparent);
   transform: translateX(-100%);
   animation: shimmer 2.5s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .animate-float {

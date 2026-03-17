@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Clock, CheckCircle, XCircle, MoreHorizontal, ArrowRight } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
+import { adminText } from '@/data/adminI18n';
 
 interface OrdersKanbanProps {
     orders: Order[];
@@ -11,12 +13,22 @@ interface OrdersKanbanProps {
     onDelete: (id: string) => void;
 }
 
+// Static Tailwind class map — dynamic interpolation (e.g. `text-${color}-500`) doesn't work with Tailwind JIT
+const colorMap: Record<string, { border: string; bg: string; icon: string; text: string }> = {
+    orange: { border: 'border-orange-100', bg: 'bg-orange-50/50', icon: 'text-orange-500', text: 'text-orange-700' },
+    blue: { border: 'border-blue-100', bg: 'bg-blue-50/50', icon: 'text-blue-500', text: 'text-blue-700' },
+    green: { border: 'border-green-100', bg: 'bg-green-50/50', icon: 'text-green-500', text: 'text-green-700' },
+    red: { border: 'border-red-100', bg: 'bg-red-50/50', icon: 'text-red-500', text: 'text-red-700' },
+};
+
 export const OrdersKanban = ({ orders, onUpdateStatus, onDelete }: OrdersKanbanProps) => {
+    const { isArabic } = useLanguage();
+
     const columns = [
-        { id: 'pending', title: 'Pending', color: 'orange', icon: Clock },
-        { id: 'processing', title: 'Processing', color: 'blue', icon: MoreHorizontal },
-        { id: 'completed', title: 'Completed', color: 'green', icon: CheckCircle },
-        { id: 'cancelled', title: 'Cancelled', color: 'red', icon: XCircle },
+        { id: 'pending', title: adminText('pendingOrders', isArabic), color: 'orange', icon: Clock },
+        { id: 'processing', title: adminText('processingOrders', isArabic), color: 'blue', icon: MoreHorizontal },
+        { id: 'completed', title: adminText('completedOrders', isArabic), color: 'green', icon: CheckCircle },
+        { id: 'cancelled', title: adminText('cancelledOrders', isArabic), color: 'red', icon: XCircle },
     ];
 
     const getColumnOrders = (status: string) => orders.filter(o => o.status === status);
@@ -25,14 +37,15 @@ export const OrdersKanban = ({ orders, onUpdateStatus, onDelete }: OrdersKanbanP
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-[600px] overflow-hidden">
             {columns.map(col => {
                 const colOrders = getColumnOrders(col.id);
+                const colors = colorMap[col.color];
 
                 return (
                     <div key={col.id} className="flex flex-col h-full bg-slate-50/50 rounded-xl border border-slate-200">
                         {/* Column Header */}
-                        <div className={`p-3 border-b border-${col.color}-100 bg-${col.color}-50/50 rounded-t-xl flex items-center justify-between`}>
+                        <div className={`p-3 border-b ${colors.border} ${colors.bg} rounded-t-xl flex items-center justify-between`}>
                             <div className="flex items-center gap-2">
-                                <col.icon className={`w-4 h-4 text-${col.color}-500`} />
-                                <span className={`font-bold text-sm text-${col.color}-700 uppercase`}>{col.title}</span>
+                                <col.icon className={`w-4 h-4 ${colors.icon}`} />
+                                <span className={`font-bold text-sm ${colors.text} uppercase`}>{col.title}</span>
                             </div>
                             <Badge variant="secondary" className="bg-white/50">{colOrders.length}</Badge>
                         </div>
@@ -42,7 +55,7 @@ export const OrdersKanban = ({ orders, onUpdateStatus, onDelete }: OrdersKanbanP
                             <div className="space-y-2">
                                 {colOrders.length === 0 && (
                                     <div className="text-center py-8 text-slate-300 text-xs italic">
-                                        No orders
+                                        {adminText('noOrders', isArabic)}
                                     </div>
                                 )}
                                 {colOrders.map(order => (
@@ -69,7 +82,7 @@ export const OrdersKanban = ({ orders, onUpdateStatus, onDelete }: OrdersKanbanP
                                                             size="icon"
                                                             variant="ghost"
                                                             className="h-6 w-6 text-green-600 hover:bg-green-50"
-                                                            title="Advance Status"
+                                                            title={adminText('advanceStatus', isArabic)}
                                                             onClick={(e) => { e.stopPropagation(); onUpdateStatus(order.id, getNextStatus(col.id)); }}
                                                         >
                                                             <ArrowRight className="w-3 h-3" />

@@ -25,7 +25,6 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
-    this.setState({ hasError: false, error: null });
     window.location.href = "/";
   };
 
@@ -38,15 +37,15 @@ class ErrorBoundary extends Component<Props, State> {
               <AlertCircle className="w-8 h-8 text-destructive" />
             </div>
             <h1 className="text-2xl font-bold text-foreground mb-2">
-              حدث خطأ
+              Something went wrong
             </h1>
             <p className="text-muted-foreground mb-6">
-              عذراً، حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.
+              An unexpected error occurred. Please try again.
             </p>
             {this.state.error && (
               <details className="mb-4 text-left">
                 <summary className="text-sm text-muted-foreground cursor-pointer mb-2">
-                  تفاصيل الخطأ
+                  Error Details
                 </summary>
                 <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-32">
                   {this.state.error.toString()}
@@ -59,14 +58,14 @@ class ErrorBoundary extends Component<Props, State> {
                 className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
               >
                 <Home className="w-4 h-4" />
-                العودة للرئيسية
+                Go Home
               </button>
               <button
                 onClick={() => window.location.reload()}
                 className="flex-1 flex items-center justify-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-lg font-semibold hover:bg-secondary/80 transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
-                إعادة التحميل
+                Reload Page
               </button>
             </div>
           </div>

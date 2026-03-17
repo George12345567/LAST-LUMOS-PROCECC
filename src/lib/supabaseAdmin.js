@@ -1,18 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient.js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 
-// ⚠️ SERVICE ROLE KEY - USE ONLY IN ADMIN DASHBOARD
-// This bypasses Row Level Security - NEVER expose to public
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY || '';
+// Frontend must never hold service-role credentials.
+// Keep this alias for compatibility while admin operations migrate to server/edge functions.
+export const supabaseAdmin = supabaseUrl
+    ? createClient(supabaseUrl, import.meta.env.VITE_SUPABASE_ANON_KEY || '', {
+        auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true,
+        },
+    })
+    : supabase;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('❌ Missing Supabase Admin environment variables!');
-}
-
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false
-    }
-});
+// Service-role is intentionally disabled in frontend runtime.
+export const isAdminMode = false;

@@ -10,6 +10,8 @@ export const useScrollReveal = () => {
           if (entry.isIntersecting) {
             entry.target.classList.add("active");
             entry.target.classList.add("animate-fade-in-up");
+            // Unobserve after reveal for better performance
+            observer.unobserve(entry.target);
           }
         });
       },

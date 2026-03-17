@@ -3,7 +3,7 @@
  * Supabase Client - Secure Connection
  * ═══════════════════════════════════════════════════════════════════
  * 
- * Initializes the Supabase client with hardcoded credentials for stability.
+ * Initializes the Supabase client from environment variables.
  * Uses ANON key only (safe for frontend).
  * 
  * ⚠️ Security Note: Only the anon key is exposed here.
@@ -14,9 +14,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Hardcoded Supabase Configuration (Stable & Production-Ready)
-const SUPABASE_URL = 'https://hkiczkmdxldshooaelio.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhraWN6a21keGxkc2hvb2FlbGlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4OTc3MjQsImV4cCI6MjA3OTQ3MzcyNH0.4OK8cfTD38Fy6z-Kux0PBqRK_ff9laCLKYO0iEuvZCs';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.warn('Missing Supabase env vars. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+}
 
 // Initialize Supabase Client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -24,6 +27,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true
+    },
+    global: {
+        headers: {
+            'x-app-version': '2.1'
+        }
     }
 });
 
@@ -31,4 +39,16 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 export const SUPABASE_CONFIG = {
     url: SUPABASE_URL,
     hasAnonKey: !!SUPABASE_ANON_KEY
+};
+
+// Health check helper - can be called to verify database connectivity
+export const checkDatabaseConnection = async () => {
+    try {
+        const { error } = await supabase.from('contacts').select('id', { count: 'exact', head: true });
+        if (error) throw error;
+        return { connected: true, message: 'Database connected successfully' };
+    } catch (error) {
+        console.error('Database connection check failed:', error);
+        return { connected: false, message: error instanceof Error ? error.message : 'Connection failed' };
+    }
 };

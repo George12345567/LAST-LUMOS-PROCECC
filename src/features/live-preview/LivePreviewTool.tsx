@@ -1,321 +1,460 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Sparkles, Smartphone, ArrowRight, CheckCircle2, Home, Search, ShoppingCart, User, Plus, Star, Clock, Flame, Palette, Settings, Zap, ChevronDown, ChevronUp, X, Image as ImageIcon, Coffee, Scissors, Pill, Store, Building2, Download, Share2, BarChart3, SortAsc, Tablet, Monitor, QrCode, TrendingUp, Eye, Upload, Check, Heart, Bell, MapPin, Filter, Grid3x3, List, Moon, Sun, Languages, RefreshCw, Image as ImageIcon2, ZoomIn, Bookmark, MessageSquare, Award, TrendingDown, FileText, Copy, Save, History, Layers, GripVertical, Trash2, Edit2, FileSpreadsheet, Printer, Globe, Code, Gauge, Type, Move, Maximize2, Minimize2, Keyboard, HelpCircle, ChevronLeft, ChevronRight, Play, Pause, RotateCw } from "lucide-react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Sparkles, Smartphone, ArrowRight, CheckCircle2, Search, ShoppingCart,
+  User, Plus, Star, Clock, Flame, Palette, ChevronDown, ChevronUp,
+  X, Coffee, Scissors, Pill, Store, Building2, Download, Share2, BarChart3,
+  QrCode, TrendingUp, Eye, Heart, Bell, MapPin,
+  Moon, Sun, ZoomIn, Bookmark, Copy, Layers,
+  Briefcase, Save, FileDown, Minus,
+  RotateCcw, Wand2, Ratio,
+  ExternalLink, Wifi, Battery, Signal, Leaf, Zap as ZapIcon, Crown, ThumbsUp, Award,
+  Loader2, LogIn, CloudOff, Cloud, Lock, Info
+} from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
-import type { MenuItem, ServiceType, Theme, Review, Template, Version, PerformanceMetrics } from "@/types";
-import { baseThemes, defaultItemsByServiceType } from "./constants";
+import type { MenuItem, ServiceType, Theme } from "@/types";
+import { baseThemes, defaultItemsByServiceType, serviceTypesConfig } from "./constants";
+import {
+  TEMPLATES,
+  type ButtonStyle,
+  type CardStyle,
+  type CategoryStyle,
+  type FeaturedStyle,
+  type HeaderStyle,
+  type NavPlacement,
+  type NavStyle,
+  type PriceStyle,
+  type SearchStyle,
+  type StatsStyle,
+  type TemplateType as TmplType,
+} from "./templates";
+import { copyToClipboard } from "./utils/clipboard";
+import { saveDesign, updateDesign } from "@/services/designService";
+import type { SaveDesignPayload } from "@/services/designService";
+import { useAuth } from "@/context/AuthContext";
+import AddItemModal from "./components/AddItemModal";
+import SyncOrb from "./components/SyncOrb";
+import AppNavigation from "./components/studio-preview/AppNavigation";
+import { WebSiteTemplate } from "./templates/WebSiteTemplate";
+import { BrandTab, ContentTab, ExportTab, TemplateTab } from "./components/studio";
+import type { T1CardStyle, T1NavStyle, T1ButtonStyle } from "./templates/Template1Screen";
+import Template1Screen from "./templates/Template1Screen";
+import { useLanguage } from "@/context/LanguageContext";
 
-// Service Types - Defined outside component
-const serviceTypes: ServiceType[] = [
-  {
-    id: "restaurant",
-    name: "مطعم",
-    icon: <Flame className="w-5 h-5" />,
-    categories: [
-      { id: "all", name: "الكل", icon: "🍽️" },
-      { id: "grill", name: "مشويات", icon: "🔥" },
-      { id: "sandwiches", name: "سندوتشات", icon: "🥪" },
-      { id: "drinks", name: "مشروبات", icon: "🥤" },
-      { id: "desserts", name: "حلويات", icon: "🍰" },
-    ],
-    placeholder: "مثال: مطعم الكبابجي",
-    itemLabel: "طبق",
-  },
-  {
-    id: "cafe",
-    name: "كافيه",
-    icon: <Coffee className="w-5 h-5" />,
-    categories: [
-      { id: "all", name: "الكل", icon: "☕" },
-      { id: "hot", name: "ساخن", icon: "🔥" },
-      { id: "cold", name: "بارد", icon: "🧊" },
-      { id: "desserts", name: "حلويات", icon: "🍰" },
-      { id: "snacks", name: "سناكس", icon: "🍪" },
-    ],
-    placeholder: "مثال: كافيه لافازا",
-    itemLabel: "منتج",
-  },
-  {
-    id: "salon",
-    name: "صالون",
-    icon: <Scissors className="w-5 h-5" />,
-    categories: [
-      { id: "all", name: "الكل", icon: "✂️" },
-      { id: "haircut", name: "قصات", icon: "💇" },
-      { id: "styling", name: "تصفيف", icon: "💆" },
-      { id: "coloring", name: "صبغات", icon: "🎨" },
-      { id: "treatments", name: "علاجات", icon: "✨" },
-    ],
-    placeholder: "مثال: صالون الجمال",
-    itemLabel: "خدمة",
-  },
-  {
-    id: "pharmacy",
-    name: "صيدلية",
-    icon: <Pill className="w-5 h-5" />,
-    categories: [
-      { id: "all", name: "الكل", icon: "💊" },
-      { id: "medicines", name: "أدوية", icon: "💉" },
-      { id: "vitamins", name: "فيتامينات", icon: "🧪" },
-      { id: "cosmetics", name: "مستحضرات", icon: "🧴" },
-      { id: "baby", name: "أطفال", icon: "👶" },
-    ],
-    placeholder: "مثال: صيدلية النور",
-    itemLabel: "منتج",
-  },
-  {
-    id: "store",
-    name: "متجر",
-    icon: <Store className="w-5 h-5" />,
-    categories: [
-      { id: "all", name: "الكل", icon: "🛍️" },
-      { id: "electronics", name: "إلكترونيات", icon: "📱" },
-      { id: "clothing", name: "ملابس", icon: "👕" },
-      { id: "home", name: "منزلية", icon: "🏠" },
-      { id: "sports", name: "رياضية", icon: "⚽" },
-    ],
-    placeholder: "مثال: متجر الأزياء",
-    itemLabel: "منتج",
-  },
-  {
-    id: "clinic",
-    name: "عيادة",
-    icon: <Building2 className="w-5 h-5" />,
-    categories: [
-      { id: "all", name: "الكل", icon: "🏥" },
-      { id: "consultation", name: "استشارات", icon: "👨‍⚕️" },
-      { id: "examination", name: "فحوصات", icon: "🔬" },
-      { id: "treatment", name: "علاجات", icon: "💊" },
-      { id: "tests", name: "تحاليل", icon: "🧪" },
-    ],
-    placeholder: "مثال: عيادة النور",
-    itemLabel: "خدمة",
-  },
-];
+// ============================================================================
+// TYPES & CONSTANTS
+// ============================================================================
+
+type PageType = "home" | "menu" | "cart" | "profile";
+type DeviceType = "mobile" | "tablet" | "desktop";
+type ViewMode = "grid" | "list";
+type TextureType = "none" | "noise" | "grid" | "dots";
+type TemplateType = TmplType;
+type StudioTab = "brand" | "content" | "template" | "export";
+const PAGE_ORDER: PageType[] = ["home", "menu", "cart", "profile"];
+
+const iconComponents: Record<string, React.ReactNode> = {
+  Flame: <Flame className="w-5 h-5" />,
+  Coffee: <Coffee className="w-5 h-5" />,
+  Scissors: <Scissors className="w-5 h-5" />,
+  Pill: <Pill className="w-5 h-5" />,
+  Store: <Store className="w-5 h-5" />,
+  Building2: <Building2 className="w-5 h-5" />,
+};
+
+const serviceTypes: ServiceType[] = serviceTypesConfig.map((config) => ({
+  ...config,
+  icon: iconComponents[config.iconName],
+}));
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 const LivePreviewTool = () => {
+  // Auth & Navigation
+  const { client: authClient, isAuthenticated } = useAuth();
+  const { t } = useLanguage();
+  const navigate = useNavigate();
+
+  // Core State
   const [businessName, setBusinessName] = useState("");
+  const [tagline, setTagline] = useState("");
+  const [logoEmoji, setLogoEmoji] = useState("");
+  const [isOpen, setIsOpen] = useState(true);
+  const [brandPersonality, setBrandPersonality] = useState<"friendly" | "premium" | "bold">("friendly");
+  const [rating, setRating] = useState(4.8);
+  const [openTime, setOpenTime] = useState("9 AM");
+  const [closeTime, setCloseTime] = useState("10 PM");
+  const [bio, setBio] = useState("");
   const [serviceType, setServiceType] = useState("restaurant");
-  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [cartCount, setCartCount] = useState(0);
-  const [showCustomization, setShowCustomization] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState("default");
-  const [customItems, setCustomItems] = useState<MenuItem[]>([]);
-  const [showAddItemForm, setShowAddItemForm] = useState(false);
-  const [newItem, setNewItem] = useState({
-    name: "",
-    description: "",
-    price: "",
-    image: "",
-    category: "",
-  });
+  const [cartItems, setCartItems] = useState<Record<number, number>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "price" | "rating">("name");
-  const [deviceView, setDeviceView] = useState<"mobile" | "tablet" | "desktop">("mobile");
-  const [showStats, setShowStats] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [favorites, setFavorites] = useState<number[]>([]);
+
+  // Studio Panel
+  const [activeStudioTab, setActiveStudioTab] = useState<StudioTab>("brand");
+
+  // Theme & Style
+  const [selectedTheme, setSelectedTheme] = useState("default");
+  const [customTheme, setCustomTheme] = useState({ primary: "#00bcd4", accent: "#00bcd4", gradient: "linear-gradient(135deg, #00bcd4, #00acc1)" });
+  const [glassEffect, setGlassEffect] = useState(false);
   const [fontSize, setFontSize] = useState(1);
-  const [copied, setCopied] = useState(false);
+  const [activeTexture, setActiveTexture] = useState<TextureType>("none");
+
+  // Layout
+  const [deviceView, setDeviceView] = useState<DeviceType>("mobile");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("aether");
+  const [selectedCategoryStyle, setSelectedCategoryStyle] = useState<CategoryStyle>("pill");
+  const [selectedButtonStyle, setSelectedButtonStyle] = useState<ButtonStyle>("outline");
+  const [selectedFeaturedStyle, setSelectedFeaturedStyle] = useState<FeaturedStyle>("banner");
+  const [selectedNavStyle, setSelectedNavStyle] = useState<NavStyle>("default");
+  const [selectedNavPlacement, setSelectedNavPlacement] = useState<NavPlacement>("bottom");
+  const [selectedHeaderStyle, setSelectedHeaderStyle] = useState<HeaderStyle>("default");
+  const [selectedCardStyle, setSelectedCardStyle] = useState<CardStyle>("elevated");
+  const [selectedSearchStyle, setSelectedSearchStyle] = useState<SearchStyle>("minimal");
+  const [selectedPriceStyle, setSelectedPriceStyle] = useState<PriceStyle>("plain");
+  const [selectedStatsStyle, setSelectedStatsStyle] = useState<StatsStyle>("card");
+  const [previewMode, setPreviewMode] = useState<"app" | "web">("app");
+  const [enable3D, setEnable3D] = useState(true);
+  const [rotationX, setRotationX] = useState(0);
+  const [rotationY, setRotationY] = useState(0);
+
+  // Preview State
+  const [currentPage, setCurrentPage] = useState<PageType>("menu");
+  const [showSearch, setShowSearch] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [notifications, setNotifications] = useState(3);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showStats, setShowStats] = useState(true);
+  const [isHovering, setIsHovering] = useState(false);
+  const [promoIndex, setPromoIndex] = useState(0);
+  const [promoHovered, setPromoHovered] = useState(false);
+  const [pageDirection, setPageDirection] = useState<1 | -1>(1);
+  const promoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Content
+  const [customItems, setCustomItems] = useState<MenuItem[]>([]);
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [newItem, setNewItem] = useState({ name: "", description: "", price: "", image: "", category: "" });
+
+  // Edit & Undo/Redo
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [itemHistory, setItemHistory] = useState<MenuItem[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  const setCustomItemsWithHistory = useCallback((updater: (prev: MenuItem[]) => MenuItem[]) => {
+    setCustomItems(prev => {
+      const next = updater(prev);
+      setItemHistory(h => {
+        const trimmed = h.slice(0, historyIndex + 1);
+        return [...trimmed, next];
+      });
+      setHistoryIndex(i => i + 1);
+      return next;
+    });
+  }, [historyIndex]);
+
+  const undo = useCallback(() => {
+    if (historyIndex <= 0) return;
+    const newIndex = historyIndex - 1;
+    setCustomItems(itemHistory[newIndex]);
+    setHistoryIndex(newIndex);
+  }, [historyIndex, itemHistory]);
+
+  const redo = useCallback(() => {
+    if (historyIndex >= itemHistory.length - 1) return;
+    const newIndex = historyIndex + 1;
+    setCustomItems(itemHistory[newIndex]);
+    setHistoryIndex(newIndex);
+  }, [historyIndex, itemHistory]);
+
+  // Advanced
+  const [showQRModal, setShowQRModal] = useState(false);
   const [showRatings, setShowRatings] = useState(true);
   const [showTime, setShowTime] = useState(true);
   const [showFeatured, setShowFeatured] = useState(true);
+  const [showPrices, setShowPrices] = useState(true);
+  const [featuredOnly, setFeaturedOnly] = useState(false);
   const [imageQuality, setImageQuality] = useState<"standard" | "hd">("standard");
-  const [currentPage, setCurrentPage] = useState<"home" | "menu" | "cart" | "profile">("menu");
-  const [favorites, setFavorites] = useState<number[]>([]);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [notifications, setNotifications] = useState(3);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Save & Publish (silent auto-save)
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedDesignId, setSavedDesignId] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Template style controls
+  const [t1CardStyle, setT1CardStyle] = useState<T1CardStyle>("elevated");
+  const [t1NavStyle, setT1NavStyle] = useState<T1NavStyle>("default");
+  const [t1ButtonStyle, setT1ButtonStyle] = useState<T1ButtonStyle>("rounded");
+  const [showStudioInfoModal, setShowStudioInfoModal] = useState(false);
+
+  const studioLocked = true;
+
+  // Refs
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const phoneRef = useRef<HTMLDivElement>(null);
 
-  // Advanced Features States
-  const [customTheme, setCustomTheme] = useState<{ primary: string; accent: string; gradient: string }>({ primary: "#00bcd4", accent: "#00bcd4", gradient: "linear-gradient(135deg, #00bcd4, #00acc1)" });
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [selectedItemsForBulkEdit, setSelectedItemsForBulkEdit] = useState<number[]>([]);
-  const [showBulkEdit, setShowBulkEdit] = useState(false);
-  const [draggedItem, setDraggedItem] = useState<number | null>(null);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [animationSpeed, setAnimationSpeed] = useState<"slow" | "normal" | "fast">("normal");
-  const [enableAnimations, setEnableAnimations] = useState(true);
-  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [showReviews, setShowReviews] = useState(false);
-  const [selectedFont, setSelectedFont] = useState("Poppins");
-  const [fontWeight, setFontWeight] = useState(400);
-  const [spacing, setSpacing] = useState({ padding: 16, margin: 8, borderRadius: 12 });
-  const [versions, setVersions] = useState<Version[]>([]);
-  const [showVersions, setShowVersions] = useState(false);
-  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
-  const [language, setLanguage] = useState<"ar" | "en">("ar");
-  const [rtl, setRtl] = useState(true);
-  const [uploadedImages, setUploadedImages] = useState<Map<number, string>>(new Map());
-  const [isDragging, setIsDragging] = useState(false);
-  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
-  const [showPrintPreview, setShowPrintPreview] = useState(false);
-  const [seoData, setSeoData] = useState({ title: "", description: "", keywords: "" });
-  const [showSeo, setShowSeo] = useState(false);
+  // ============================================================================
+  // COMPUTED VALUES
+  // ============================================================================
 
-  // Theme Options - Custom theme will be added dynamically
-
-  // Add custom theme dynamically
-  const themes: Theme[] = [
-    ...baseThemes,
-    {
-      id: "custom",
-      name: "مخصص",
-      primary: customTheme.primary,
-      gradient: customTheme.gradient,
-      accent: customTheme.accent,
-      custom: true
-    },
-  ];
-
-  const currentServiceType = serviceTypes.find(st => st.id === serviceType) || serviceTypes[0];
+  const isPreviewVisible = businessName.trim().length > 0;
+  const tmpl = useMemo(() => TEMPLATES.find(t => t.id === selectedTemplate) || TEMPLATES[0], [selectedTemplate]);
+  const isNeonTemplate = !!tmpl.forceDark;
+  const currentServiceType = useMemo(() => serviceTypes.find(st => st.id === serviceType) || serviceTypes[0], [serviceType]);
   const categories = currentServiceType.categories;
+  const menuItems = useMemo(() => defaultItemsByServiceType[serviceType] || [], [serviceType]);
 
+  const themes: Theme[] = useMemo(() => [
+    ...baseThemes,
+    { id: "custom", name: "Custom", primary: customTheme.primary, gradient: customTheme.gradient, accent: customTheme.accent, custom: true },
+  ], [customTheme]);
 
-  // Get menu items based on service type
-  const menuItems = defaultItemsByServiceType[serviceType] || [];
+  const currentTheme = useMemo(() => themes.find(t => t.id === selectedTheme) || themes[0], [themes, selectedTheme]);
+  const allMenuItems = useMemo(() => [...menuItems, ...customItems], [menuItems, customItems]);
+  const cartCount = useMemo(() => Object.values(cartItems).reduce((s, c) => s + c, 0), [cartItems]);
+  const cartTotal = useMemo(() => Object.entries(cartItems).reduce((s, [id, qty]) => {
+    const item = allMenuItems.find(i => i.id === Number(id));
+    return s + (item ? parseFloat(item.price) * qty : 0);
+  }, 0), [cartItems, allMenuItems]);
 
-  const currentTheme = themes.find(t => t.id === selectedTheme) || themes[0];
-
-  // Determine text color based on theme brightness
-  const getTextColor = () => {
-    // Themes that need dark text (light backgrounds)
-    const lightThemes = ["default"];
-    if (lightThemes.includes(selectedTheme)) {
-      return "text-foreground";
-    }
-    // Dark themes use white text
-    return "text-white";
-  };
-
-  const getTextColorSecondary = () => {
-    const lightThemes = ["default"];
-    if (lightThemes.includes(selectedTheme)) {
-      return "text-muted-foreground";
-    }
-    return "text-white/70";
-  };
-
-  // Combine default items with custom items
-  const allMenuItems = [...menuItems, ...customItems];
-
-  // Filter items by category and search
-  const filteredItems = (selectedCategory === "all"
-    ? allMenuItems
-    : allMenuItems.filter(item => item.category === selectedCategory))
-    .filter(item =>
+  const filteredItems = useMemo(() => {
+    let items = selectedCategory === "all" ? allMenuItems : allMenuItems.filter(item => item.category === selectedCategory);
+    if (featuredOnly) items = items.filter(item => item.featured);
+    items = items.filter(item =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (sortBy === "price") {
-        return parseFloat(a.price) - parseFloat(b.price);
-      } else if (sortBy === "rating") {
-        return (b.rating || 0) - (a.rating || 0);
-      } else {
-        return a.name.localeCompare(b.name);
-      }
+    );
+    return items.sort((a, b) => {
+      if (sortBy === "price") return parseFloat(a.price) - parseFloat(b.price);
+      if (sortBy === "rating") return (b.rating || 0) - (a.rating || 0);
+      return a.name.localeCompare(b.name);
     });
+  }, [allMenuItems, selectedCategory, searchQuery, sortBy, featuredOnly]);
 
-  // Calculate statistics
-  const stats = {
+  const stats = useMemo(() => ({
     totalItems: allMenuItems.length,
     totalValue: allMenuItems.reduce((sum, item) => sum + parseFloat(item.price || "0"), 0),
-    averagePrice: allMenuItems.length > 0
-      ? allMenuItems.reduce((sum, item) => sum + parseFloat(item.price || "0"), 0) / allMenuItems.length
-      : 0,
+    averagePrice: allMenuItems.length > 0 ? allMenuItems.reduce((sum, item) => sum + parseFloat(item.price || "0"), 0) / allMenuItems.length : 0,
     featuredCount: allMenuItems.filter(item => item.featured).length,
     categoriesCount: new Set(allMenuItems.map(item => item.category)).size,
-  };
+  }), [allMenuItems]);
 
-  // Generate QR Code URL (using a free QR code API)
-  const generateQRCode = () => {
-    const data = encodeURIComponent(JSON.stringify({
-      name: businessName,
-      serviceType,
-      theme: selectedTheme,
-      items: allMenuItems.length,
-    }));
-    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data}`;
-  };
+  const displayName = businessName.trim() || currentServiceType.name;
+  const localizedOpenTime = openTime === "9 AM" ? t("9 ص", "9 AM") : openTime;
+  const localizedCloseTime = closeTime === "10 PM" ? t("10 م", "10 PM") : closeTime;
 
-  // Download preview as image
-  const downloadPreview = async () => {
-    if (!phoneRef.current) return;
+  // Effective accent: use theme accent unless it's default, then use template accent
+  const effectiveAccent = selectedTheme !== "default" ? currentTheme.accent : tmpl.accent;
+  const effectiveGradient = selectedTheme !== "default" ? currentTheme.gradient : `linear-gradient(135deg, ${tmpl.accent}, ${tmpl.accent}dd)`;
+  const activeCategoryStyle = selectedCategoryStyle;
+  const activeButtonStyle = selectedButtonStyle;
+  const activeFeaturedStyle = selectedFeaturedStyle;
+  const activeNavStyle = selectedNavStyle;
+  const activeNavPlacement = selectedNavPlacement;
+  const activeHeaderStyle = selectedHeaderStyle;
+  const activeCardStyle = selectedCardStyle;
+  const activeSearchStyle = selectedSearchStyle;
+  const activePriceStyle = selectedPriceStyle;
+  const activeStatsStyle = selectedStatsStyle;
 
-    try {
-      // This would require html2canvas library - for now, show a toast
-      toast.success("ميزة التحميل قريباً! يمكنك استخدام زر Print Screen لحفظ المعاينة.");
-    } catch (error) {
-      toast.error("حدث خطأ أثناء التحميل");
+  // Text helpers for themed headers
+  const headerTextWhite = selectedTheme !== "default" || !!tmpl.forceDark || tmpl.headerBg.includes("gradient");
+
+  useEffect(() => {
+    setSelectedCategoryStyle(tmpl.catStyle);
+    setSelectedButtonStyle(tmpl.btnStyle);
+    setSelectedFeaturedStyle(tmpl.featuredStyle);
+    setSelectedNavStyle(tmpl.navStyle);
+    setSelectedNavPlacement(tmpl.navPlacement);
+    setSelectedHeaderStyle(tmpl.headerStyle);
+    setSelectedCardStyle(tmpl.cardStyle);
+    setSelectedSearchStyle(tmpl.searchStyle);
+    setSelectedPriceStyle(tmpl.priceStyle);
+    setSelectedStatsStyle(tmpl.statsStyle);
+  }, [tmpl]);
+
+  // Promo auto-cycle — pauses on hover
+  useEffect(() => {
+    if (promoHovered) {
+      if (promoIntervalRef.current) clearInterval(promoIntervalRef.current);
+      return;
     }
+    promoIntervalRef.current = setInterval(() => setPromoIndex(p => (p + 1) % 3), 4000);
+    return () => { if (promoIntervalRef.current) clearInterval(promoIntervalRef.current); };
+  }, [promoHovered]);
+
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+
+  useEffect(() => {
+    setSelectedCategory("all");
+    setNewItem(prev => ({ ...prev, category: currentServiceType.categories[1]?.id || "" }));
+  }, [serviceType, currentServiceType]);
+
+  const updateCustomTheme = (colorType: "primary" | "accent", color: string) => {
+    const n = { ...customTheme, [colorType]: color };
+    setCustomTheme({ ...n, gradient: `linear-gradient(135deg, ${n.primary}, ${n.accent})` });
   };
 
-  // Copy shareable link
-  const copyShareLink = async () => {
-    const link = `${window.location.origin}${window.location.pathname}#live-preview`;
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(link);
-        setCopied(true);
-        toast.success("تم نسخ الرابط!");
-        setTimeout(() => setCopied(false), 2000);
-      } else {
-        // Fallback for older browsers
-        const textArea = document.createElement("textarea");
-        textArea.value = link;
-        textArea.style.position = "fixed";
-        textArea.style.opacity = "0";
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-          document.execCommand("copy");
-          setCopied(true);
-          toast.success("تم نسخ الرابط!");
-          setTimeout(() => setCopied(false), 2000);
-        } catch (err) {
-          console.error("Failed to copy:", err);
-          toast.error("فشل نسخ الرابط. الرابط: " + link);
-        }
-        document.body.removeChild(textArea);
-      }
-    } catch (error) {
-      console.error("Failed to copy link:", error);
-      toast.error("فشل نسخ الرابط. الرابط: " + link);
+  const addToCart = (itemId: number) => {
+    setCartItems(prev => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
+  };
+
+  const removeFromCart = (itemId: number) => {
+    setCartItems(prev => {
+      const n = { ...prev };
+      if (n[itemId] > 1) n[itemId]--;
+      else delete n[itemId];
+      return n;
+    });
+  };
+
+  const handleAddItem = () => {
+    if (!newItem.name || !newItem.price || !newItem.category) {
+      toast.error("Please fill all required fields");
+      return;
     }
-  };
-
-  // Export data as JSON
-  const exportData = () => {
-    const data = {
-      businessName,
-      serviceType,
-      theme: selectedTheme,
-      items: allMenuItems,
-      createdAt: new Date().toISOString(),
+    const item: MenuItem = {
+      id: Date.now(), name: newItem.name, description: newItem.description,
+      price: newItem.price, image: newItem.image || "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400",
+      category: newItem.category, rating: 4.5,
     };
+    setCustomItems(prev => [...prev, item]);
+    setNewItem({ name: "", description: "", price: "", image: "", category: currentServiceType.categories[1]?.id || "" });
+    setShowAddItem(false);
+    toast.success("Item added successfully!");
+  };
+
+  const handleModalSave = useCallback((item: MenuItem) => {
+    if (editingItem) {
+      setCustomItemsWithHistory(prev =>
+        prev.map(i => i.id === item.id ? item : i)
+      );
+      toast.success(`"${item.name}" updated!`);
+    } else {
+      setCustomItemsWithHistory(prev => [...prev, item]);
+      toast.success(`"${item.name}" added!`);
+    }
+    setEditingItem(null);
+  }, [editingItem, setCustomItemsWithHistory]);
+
+  const handleDeleteItem = useCallback((id: number, name: string) => {
+    setCustomItemsWithHistory(prev => prev.filter(i => i.id !== id));
+    toast.success(`"${name}" removed`);
+  }, [setCustomItemsWithHistory]);
+
+  // Navigate pages with direction tracking for slide animations
+  const navigatePage = useCallback((page: PageType) => {
+    const from = PAGE_ORDER.indexOf(currentPage);
+    const to = PAGE_ORDER.indexOf(page);
+    setPageDirection(to >= from ? 1 : -1);
+    setCurrentPage(page);
+  }, [currentPage]);
+
+  const handleReorderItem = useCallback((id: number, direction: "up" | "down") => {
+    setCustomItemsWithHistory(prev => {
+      const idx = prev.findIndex(i => i.id === id);
+      if (idx < 0) return prev;
+      const newArr = [...prev];
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= newArr.length) return prev;
+      [newArr[idx], newArr[swapIdx]] = [newArr[swapIdx], newArr[idx]];
+      return newArr;
+    });
+  }, [setCustomItemsWithHistory]);
+
+  const handleClearAllCustomItems = useCallback(() => {
+    setCustomItemsWithHistory(() => []);
+    toast.success("All custom items cleared");
+  }, [setCustomItemsWithHistory]);
+
+  const handleResetAll = useCallback(() => {
+    setBusinessName("");
+    setTagline("");
+    setLogoEmoji("");
+    setIsOpen(true);
+    setBrandPersonality("friendly");
+    setRating(4.8);
+    setOpenTime("9 AM");
+    setCloseTime("10 PM");
+    setBio("");
+    setServiceType("restaurant");
+    setSelectedTheme("default");
+    setSelectedTemplate("aether");
+    setSelectedCategoryStyle("pill");
+    setSelectedButtonStyle("outline");
+    setSelectedFeaturedStyle("banner");
+    setSelectedNavStyle("default");
+    setSelectedNavPlacement("bottom");
+    setSelectedHeaderStyle("default");
+    setSelectedCardStyle("elevated");
+    setSelectedSearchStyle("minimal");
+    setSelectedPriceStyle("plain");
+    setSelectedStatsStyle("card");
+    setCustomItems([]);
+    setCartItems({});
+    setFavorites([]);
+    setIsDarkMode(false);
+    setGlassEffect(false);
+    setActiveTexture("none");
+    setFontSize(1);
+    setViewMode("list");
+    setEnable3D(true);
+    setRotationX(0);
+    setRotationY(0);
+    setShowPrices(true);
+    setFeaturedOnly(false);
+    toast.success("Reset to defaults");
+  }, []);
+
+  const handleApplyAiPreset = useCallback(() => {
+    setBusinessName("Luminary Cafe");
+    setServiceType("cafe");
+    setSelectedTheme("elegant");
+    setGlassEffect(true);
+    setSelectedTemplate("brutal");
+    setSelectedCategoryStyle("chip");
+    setSelectedButtonStyle("gradient");
+    setSelectedFeaturedStyle("card");
+    setSelectedNavStyle("pill");
+    setSelectedNavPlacement("floating");
+    setSelectedHeaderStyle("glass");
+    setSelectedCardStyle("neo");
+    setSelectedSearchStyle("glass");
+    setSelectedPriceStyle("chip");
+    setSelectedStatsStyle("glass");
+    toast.success("AI template applied!");
+  }, []);
+
+  const handleApplyPerformanceMode = useCallback(() => {
+    setGlassEffect(false);
+    setActiveTexture("none");
+    toast.info("Performance mode: heavy effects disabled");
+  }, []);
+
+  const exportData = () => {
+    const data = { businessName, serviceType, theme: selectedTheme, template: selectedTemplate, items: allMenuItems, createdAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${businessName || "preview"}-data.json`;
-    a.click();
+    const a = document.createElement("a"); a.href = url; a.download = `${businessName || "preview"}-data.json`; a.click();
     URL.revokeObjectURL(url);
-    toast.success("تم تصدير البيانات!");
+    toast.success("Data exported!");
   };
 
-  // Import data from JSON
   const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -323,2188 +462,1236 @@ const LivePreviewTool = () => {
         if (data.businessName) setBusinessName(data.businessName);
         if (data.serviceType) setServiceType(data.serviceType);
         if (data.theme) setSelectedTheme(data.theme);
-        if (data.items && Array.isArray(data.items)) {
-          setCustomItems(data.items.filter((item: MenuItem) => !menuItems.find(mi => mi.id === item.id)));
-        }
-        toast.success("تم استيراد البيانات بنجاح!");
-      } catch (error) {
-        toast.error("خطأ في قراءة الملف");
-      }
+        if (data.template) setSelectedTemplate(data.template);
+        if (data.items) setCustomItems(data.items.filter((item: MenuItem) => !menuItems.find(mi => mi.id === item.id)));
+        toast.success("Data imported!");
+      } catch { toast.error("Error reading file"); }
     };
     reader.readAsText(file);
   };
 
-  // Handle adding new item
-  const handleAddItem = () => {
-    if (!newItem.name || !newItem.price || !newItem.category) return;
-
-    const item: MenuItem = {
-      id: Date.now(),
-      name: newItem.name,
-      description: newItem.description,
-      price: newItem.price,
-      image: newItem.image || "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400",
-      category: newItem.category,
-      time: serviceType === "restaurant" ? "20 دقيقة" : serviceType === "cafe" ? "10 دقائق" : undefined,
-      rating: 4.5,
-    };
-
-    setCustomItems([...customItems, item]);
-    setNewItem({ name: "", description: "", price: "", image: "", category: currentServiceType.categories[1]?.id || "" });
-    setShowAddItemForm(false);
+  const copyShareLink = async () => {
+    const link = `${window.location.origin}${window.location.pathname}#live-preview`;
+    const success = await copyToClipboard(link, "Link copied!", "Failed to copy");
+    if (success) { setCopied(true); setTimeout(() => setCopied(false), 2000); }
   };
 
-  // Handle removing custom item
-  const handleRemoveItem = (id: number) => {
-    setCustomItems(customItems.filter(item => item.id !== id));
-  };
-
-  // Show preview when name is entered
-  useEffect(() => {
-    if (businessName.trim().length > 0) {
-      setIsPreviewVisible(true);
-    } else {
-      setIsPreviewVisible(false);
-    }
-  }, [businessName]);
-
-  // Reset category when service type changes
-  useEffect(() => {
-    setSelectedCategory("all");
-    const firstCategory = currentServiceType.categories[1]?.id || "";
-    setNewItem(prev => ({ ...prev, category: firstCategory }));
-  }, [serviceType, currentServiceType]);
-
-  // ========== ADVANCED FEATURES FUNCTIONS ==========
-
-  // Image Upload with Drag & Drop
-  const handleImageUpload = useCallback((file: File, itemId?: number) => {
-    if (!file.type.startsWith('image/')) {
-      toast.error("الملف يجب أن يكون صورة");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("حجم الصورة يجب أن يكون أقل من 5MB");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const imageUrl = e.target?.result as string;
-      if (itemId) {
-        setUploadedImages(prev => new Map(prev).set(itemId, imageUrl));
-        setCustomItems(prev => prev.map(item =>
-          item.id === itemId ? { ...item, image: imageUrl } : item
-        ));
-      } else {
-        setNewItem(prev => ({ ...prev, image: imageUrl }));
-      }
-      toast.success("تم رفع الصورة بنجاح");
-    };
-    reader.readAsDataURL(file);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, itemId?: number) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleImageUpload(file, itemId);
-  }, [handleImageUpload]);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  // CSV Import/Export
   const exportToCSV = () => {
     const headers = ["Name", "Description", "Price", "Category", "Featured", "Time", "Rating"];
-    const rows = allMenuItems.map(item => [
-      item.name,
-      item.description,
-      item.price,
-      item.category,
-      item.featured ? "Yes" : "No",
-      item.time || "",
-      item.rating?.toString() || ""
-    ]);
+    const rows = allMenuItems.map(item => [item.name, item.description, item.price, item.category, item.featured ? "Yes" : "No", item.time || "", item.rating?.toString() || ""]);
     const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${businessName || "menu"}-items.csv`;
-    a.click();
+    const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${businessName || "menu"}-items.csv`; a.click();
     URL.revokeObjectURL(url);
-    toast.success("تم تصدير البيانات إلى CSV");
+    toast.success("CSV exported!");
   };
 
-  const importFromCSV = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result as string;
-        const lines = text.split("\n").filter(line => line.trim());
-        const headers = lines[0].split(",");
-        const items: MenuItem[] = [];
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(",");
-          if (values.length >= 3) {
-            items.push({
-              id: Date.now() + i,
-              name: values[0] || "",
-              description: values[1] || "",
-              price: values[2] || "",
-              image: values[3] || "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400",
-              category: values[4] || currentServiceType.categories[1]?.id || "all",
-              featured: values[5]?.toLowerCase() === "yes",
-              time: values[6] || undefined,
-              rating: values[7] ? parseFloat(values[7]) : undefined,
-            });
-          }
-        }
-        setCustomItems(prev => [...prev, ...items]);
-        toast.success(`تم استيراد ${items.length} عنصر`);
-      } catch (error) {
-        toast.error("خطأ في قراءة ملف CSV");
+  // ============================================================================
+  // SILENT AUTO-SAVE SYSTEM
+  // ============================================================================
+
+  const getPreviewUrl = useCallback((designId: string) => {
+    return `${window.location.origin}/demo?id=${designId}`;
+  }, []);
+
+  /** Build the save payload from current state */
+  const buildPayload = useCallback((): SaveDesignPayload => ({
+    business_name: businessName.trim(),
+    service_type: serviceType,
+    selected_theme: selectedTheme,
+    custom_theme: customTheme,
+    selected_template: selectedTemplate,
+    is_dark_mode: isDarkMode,
+    glass_effect: glassEffect,
+    active_texture: activeTexture,
+    font_size: fontSize,
+    view_mode: viewMode,
+    device_view: deviceView,
+    enable_3d: enable3D,
+    rotation_x: rotationX,
+    rotation_y: rotationY,
+    show_ratings: showRatings,
+    show_time: showTime,
+    show_featured: showFeatured,
+    image_quality: imageQuality,
+    sort_by: sortBy,
+    custom_items: customItems,
+    cart_items: cartItems,
+    favorites,
+    client_id: authClient?.id || undefined,
+    browser_data: {
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      platform: navigator.platform,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      timestamp: new Date().toISOString(),
+    },
+  }), [businessName, serviceType, selectedTheme, customTheme, selectedTemplate, isDarkMode, glassEffect, activeTexture, fontSize, viewMode, deviceView, enable3D, rotationX, rotationY, showRatings, showTime, showFeatured, imageQuality, sortBy, customItems, cartItems, favorites, authClient]);
+
+  /** Silent save — no modal, no user interaction needed */
+  const performSilentSave = useCallback(async () => {
+    if (!businessName.trim() || !isAuthenticated || !authClient?.id) return;
+
+    setIsSaving(true);
+    try {
+      const payload = buildPayload();
+
+      if (savedDesignId) {
+        // Update existing design
+        await updateDesign(savedDesignId, payload);
+      } else {
+        // Create new design
+        const saved = await saveDesign(payload);
+        setSavedDesignId(saved.id);
       }
-    };
-    reader.readAsText(file);
-  };
 
-  // Advanced Color Picker
-  const updateCustomTheme = (colorType: "primary" | "accent", color: string) => {
-    const newTheme = { ...customTheme, [colorType]: color };
-    const gradient = `linear-gradient(135deg, ${newTheme.primary}, ${newTheme.accent})`;
-    setCustomTheme({ ...newTheme, gradient });
-    if (selectedTheme === "custom") {
-      const updatedThemes = themes.map(t =>
-        t.id === "custom" ? { ...t, primary: newTheme.primary, accent: newTheme.accent, gradient } : t
-      );
-      // Update theme in real-time
+      setLastSavedAt(new Date());
+    } catch (err: unknown) {
+      console.error("Auto-save error:", err);
+      // Silent fail — don't bother user
+    } finally {
+      setIsSaving(false);
     }
-  };
+  }, [businessName, isAuthenticated, authClient, savedDesignId, buildPayload]);
 
-  // Bulk Edit
-  const handleBulkEdit = (field: keyof MenuItem, value: any) => {
-    setCustomItems(prev => prev.map(item =>
-      selectedItemsForBulkEdit.includes(item.id) ? { ...item, [field]: value } : item
-    ));
-    toast.success(`تم تحديث ${selectedItemsForBulkEdit.length} عنصر`);
-    setSelectedItemsForBulkEdit([]);
-    setShowBulkEdit(false);
-  };
+  /** Debounced auto-save — triggers 2s after last change */
+  const scheduleAutoSave = useCallback(() => {
+    if (!isAuthenticated || !businessName.trim()) return;
 
-  // Drag & Drop Reordering
-  const handleDragStart = (itemId: number) => {
-    setDraggedItem(itemId);
-  };
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
 
-  const handleDragOverItem = (e: React.DragEvent, targetId: number) => {
-    e.preventDefault();
-    if (draggedItem === null || draggedItem === targetId) return;
-    const items = [...allMenuItems];
-    const draggedIndex = items.findIndex(item => item.id === draggedItem);
-    const targetIndex = items.findIndex(item => item.id === targetId);
-    items.splice(targetIndex, 0, items.splice(draggedIndex, 1)[0]);
-    setCustomItems(items.filter(item => !menuItems.find(mi => mi.id === item.id)));
-  };
+    autoSaveTimerRef.current = setTimeout(() => {
+      performSilentSave();
+    }, 2000);
+  }, [isAuthenticated, businessName, performSilentSave]);
 
-  const handleDragEnd = () => {
-    setDraggedItem(null);
-  };
-
-  // Templates
-  const saveAsTemplate = () => {
-    const template: Template = {
-      id: Date.now().toString(),
-      name: `${businessName} Template`,
-      serviceType,
-      theme: selectedTheme,
-      items: allMenuItems,
-      description: `Template for ${businessName}`
-    };
-    setTemplates(prev => [...prev, template]);
-    toast.success("تم حفظ القالب");
-  };
-
-  const loadTemplate = (template: Template) => {
-    setBusinessName(template.name.replace(" Template", ""));
-    setServiceType(template.serviceType);
-    setSelectedTheme(template.theme);
-    setCustomItems(template.items.filter(item => !menuItems.find(mi => mi.id === item.id)));
-    toast.success("تم تحميل القالب");
-  };
-
-  // Version History
-  const saveVersion = () => {
-    const version: Version = {
-      id: Date.now().toString(),
-      name: `Version ${versions.length + 1}`,
-      timestamp: new Date(),
-      data: {
-        businessName,
-        serviceType,
-        theme: selectedTheme,
-        items: allMenuItems
-      }
-    };
-    setVersions(prev => [...prev, version]);
-    setCurrentVersion(version.id);
-    toast.success("تم حفظ الإصدار");
-  };
-
-  const loadVersion = (version: Version) => {
-    setBusinessName(version.data.businessName);
-    setServiceType(version.data.serviceType);
-    setSelectedTheme(version.data.theme);
-    setCustomItems(version.data.items.filter(item => !menuItems.find(mi => mi.id === item.id)));
-    setCurrentVersion(version.id);
-    toast.success("تم تحميل الإصدار");
-  };
-
-  // Performance Metrics
-  const calculatePerformance = () => {
-    const itemCount = allMenuItems.length;
-    const imageCount = allMenuItems.filter(item => item.image).length;
-    const estimatedPageSize = itemCount * 2 + imageCount * 50; // KB
-    const estimatedLoadTime = Math.max(1, estimatedPageSize / 100); // seconds
-    const estimatedBundleSize = 150 + (itemCount * 0.5); // KB
-    const accessibilityScore = Math.min(100, 85 + (itemCount > 0 ? 5 : 0) + (businessName ? 5 : 0) + (selectedTheme !== "default" ? 5 : 0));
-
-    setPerformanceMetrics({
-      pageSize: estimatedPageSize,
-      loadTime: estimatedLoadTime,
-      bundleSize: estimatedBundleSize,
-      imageCount,
-      accessibilityScore
-    });
-  };
-
+  // Watch all design state changes for auto-save
   useEffect(() => {
-    if (isPreviewVisible) {
-      calculatePerformance();
-    }
-  }, [allMenuItems.length, businessName, selectedTheme, isPreviewVisible]);
-
-  // Reviews System
-  const addReview = (review: Omit<Review, "id" | "date">) => {
-    const newReview: Review = {
-      id: Date.now(),
-      ...review,
-      date: new Date().toLocaleDateString("ar-EG")
+    scheduleAutoSave();
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-    setReviews(prev => [...prev, newReview]);
-    toast.success("تم إضافة التقييم");
-  };
+  }, [businessName, serviceType, selectedTheme, customTheme, selectedTemplate, isDarkMode, glassEffect, activeTexture, fontSize, viewMode, deviceView, enable3D, rotationX, rotationY, showRatings, showTime, showFeatured, imageQuality, sortBy, customItems, cartItems, favorites, scheduleAutoSave]);
 
-  // Print Preview
-  const printMenu = () => {
-    window.print();
-  };
+  /** Manual save button — if not logged in, prompt login */
+  const handleManualSave = useCallback(() => {
+    if (!businessName.trim()) {
+      toast.error("Please enter a business name first");
+      return;
+    }
+    if (!isAuthenticated) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    performSilentSave();
+    toast.success("Design saved!");
+  }, [businessName, isAuthenticated, performSilentSave]);
 
-  // Keyboard Shortcuts
+  /** Redirect to login with return URL */
+  const handleLoginRedirect = useCallback(() => {
+    setShowLoginPrompt(false);
+    navigate('/client-login?redirect=' + encodeURIComponent('/#live-preview'));
+  }, [navigate]);
+
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case "s":
-            e.preventDefault();
-            saveVersion();
-            break;
-          case "e":
-            e.preventDefault();
-            exportToCSV();
-            break;
-          case "i":
-            e.preventDefault();
-            setShowAddItemForm(true);
-            break;
-          case "k":
-            e.preventDefault();
-            setShowKeyboardShortcuts(!showKeyboardShortcuts);
-            break;
-        }
+        if (e.key === "e") { e.preventDefault(); exportToCSV(); }
+        if (e.key === "i") { e.preventDefault(); setShowAddItem(true); }
       }
     };
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [showKeyboardShortcuts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Duplicate Item
-  const duplicateItem = (item: MenuItem) => {
-    const newItem: MenuItem = {
-      ...item,
-      id: Date.now(),
-      name: `${item.name} (نسخة)`
-    };
-    setCustomItems(prev => [...prev, newItem]);
-    toast.success("تم نسخ العنصر");
+  const studioTabs: { id: StudioTab; label: string; icon: typeof Layers }[] = [
+    { id: "brand", label: "Brand", icon: Briefcase },
+    { id: "content", label: "Content", icon: Layers },
+    { id: "template", label: "Template", icon: Palette },
+    { id: "export", label: "Export", icon: FileDown },
+  ];
+
+  // ============================================================================
+  // TEMPLATE-AWARE RENDER HELPERS
+  // ============================================================================
+
+  const getImgSrc = (src: string) => imageQuality === "hd" ? src.replace("?w=400", "?w=800&q=90") : src;
+
+  const cardStyleClass = useMemo(() => {
+    switch (activeCardStyle) {
+      case "flat": return "shadow-none border";
+      case "outline": return "border-2 shadow-none";
+      case "neo": return "border shadow-[8px_8px_0_rgba(15,23,42,0.2)]";
+      case "inset": return "border shadow-inner";
+      case "brutal": return "border-2 rounded-none shadow-[6px_6px_0_rgba(249,115,22,0.35)]";
+      default: return "shadow-md border";
+    }
+  }, [activeCardStyle]);
+
+  const headerStyleClass = useMemo(() => {
+    switch (activeHeaderStyle) {
+      case "glass": return "backdrop-blur-xl border-b border-white/15";
+      case "split": return "border-b-2";
+      case "centered": return "justify-center text-center";
+      case "compact": return "py-2";
+      case "banner": return "shadow-lg";
+      default: return "";
+    }
+  }, [activeHeaderStyle]);
+
+  const headerStyleOverride = useMemo<React.CSSProperties>(() => {
+    if (activeHeaderStyle === "split") return { borderColor: `${effectiveAccent}55` };
+    if (activeHeaderStyle === "banner") return { boxShadow: `0 8px 24px ${effectiveAccent}30` };
+    return {};
+  }, [activeHeaderStyle, effectiveAccent]);
+
+  const headerBaseStyle: React.CSSProperties = selectedTheme !== "default" && !glassEffect
+    ? { background: currentTheme.gradient }
+    : (!glassEffect && headerTextWhite ? { background: effectiveGradient } : {});
+
+  const searchWrapClass = useMemo(() => {
+    switch (activeSearchStyle) {
+      case "soft": return "rounded-2xl border";
+      case "pill": return "rounded-full border";
+      case "glass": return "rounded-2xl border backdrop-blur-md bg-white/10";
+      case "underline": return "border-b";
+      case "terminal": return "rounded-none border-2";
+      default: return "rounded-lg border";
+    }
+  }, [activeSearchStyle]);
+
+  const searchInputClass = useMemo(() => {
+    if (activeSearchStyle === "terminal") return "font-mono tracking-wide";
+    if (activeSearchStyle === "underline") return "rounded-none bg-transparent border-0 border-b";
+    return "";
+  }, [activeSearchStyle]);
+
+  const priceClass = useMemo(() => {
+    switch (activePriceStyle) {
+      case "pill": return "px-2 py-0.5 rounded-full bg-black/10";
+      case "tag": return "px-1.5 py-0.5 rounded-md border text-[10px] uppercase tracking-wide";
+      case "chip": return "px-2 py-0.5 rounded-lg bg-white/70";
+      case "glow": return "px-2 py-0.5 rounded-md shadow-[0_0_10px_rgba(34,211,238,0.25)]";
+      default: return "";
+    }
+  }, [activePriceStyle]);
+
+  const statsCardClass = useMemo(() => {
+    switch (activeStatsStyle) {
+      case "strip": return "rounded-none border-x-0";
+      case "minimal": return "shadow-none border-0 bg-transparent";
+      case "glass": return "backdrop-blur-md bg-white/10 border border-white/20";
+      case "tiles": return "rounded-none border-2";
+      default: return "";
+    }
+  }, [activeStatsStyle]);
+
+  // -- Category pills per template --
+  const renderCategory = (cat: { id: string; name: string; icon: string }, isActive: boolean) => {
+    const base = "flex items-center gap-1.5 whitespace-nowrap transition-all text-xs font-medium";
+    switch (activeCategoryStyle) {
+      case "underline":
+        return <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`${base} px-2 py-2 border-b-2 ${isActive ? "border-current font-bold" : "border-transparent"}`} style={isActive ? { color: effectiveAccent } : { color: isNeonTemplate ? "#94a3b8" : "#64748b" }}><span>{cat.name}</span></button>;
+      case "chip":
+        return <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`${base} px-4 py-2 rounded-xl ${isActive ? "text-white shadow-lg" : "bg-white text-muted-foreground border border-slate-200"}`} style={isActive ? { background: effectiveGradient } : {}}><span className="text-sm">{cat.icon}</span><span>{cat.name}</span></button>;
+      case "block":
+        return <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`${base} px-3 py-2 rounded-lg ${isActive ? "text-white font-bold" : "bg-amber-50 text-amber-800 border border-amber-200/50"}`} style={isActive ? { background: effectiveGradient } : {}}><span className="text-sm">{cat.icon}</span><span className="tracking-wide uppercase text-[10px] font-bold">{cat.name}</span></button>;
+      case "glow":
+        return <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`${base} px-3 py-2 rounded-lg border ${isActive ? "border-cyan-400/50 text-cyan-300" : "border-slate-700 text-slate-400"}`} style={isActive ? { boxShadow: `0 0 12px ${effectiveAccent}40`, background: `${effectiveAccent}15` } : {}}><span className="text-sm">{cat.icon}</span><span>{cat.name}</span></button>;
+      case "tag":
+        return <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`${base} px-4 py-2 rounded-full border-2 font-bold ${isActive ? "text-white border-transparent" : "text-orange-600 border-orange-200 bg-white"}`} style={isActive ? { background: effectiveGradient, borderColor: "transparent" } : {}}><span className="text-sm">{cat.icon}</span><span>{cat.name}</span></button>;
+      case "minimal":
+        return <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`${base} px-3 py-2 rounded-full ${isActive ? "font-bold text-white" : "text-green-700 bg-green-50"}`} style={isActive ? { background: effectiveGradient } : {}}><span className="text-sm">{cat.icon}</span><span>{cat.name}</span></button>;
+      default: // pill
+        return <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={`${base} px-3 py-1.5 rounded-full ${isActive ? "text-white shadow-md" : "bg-white text-muted-foreground border border-slate-200 hover:bg-background"}`} style={isActive ? { background: effectiveGradient } : {}}><span className="text-sm">{cat.icon}</span><span>{cat.name}</span></button>;
+    }
   };
 
-  const displayName = businessName.trim() || currentServiceType.name;
+  // -- Add to cart button per template --
+  const renderAddBtn = (itemId: number, small = false) => {
+    const qty = cartItems[itemId] || 0;
+    if (qty > 0) {
+      return (
+        <div className={`flex items-center gap-1 ${small ? "justify-center" : "justify-between"}`}>
+          <button onClick={() => removeFromCart(itemId)} className={`w-7 h-7 flex items-center justify-center ${tmpl.btnRadius} border transition-all`} style={{ borderColor: effectiveAccent + "50", color: effectiveAccent }}><Minus className="w-3 h-3" /></button>
+          <span className={`text-xs font-bold min-w-[20px] text-center ${isNeonTemplate ? "text-cyan-300" : "text-slate-700"}`}>{qty}</span>
+          <button onClick={() => addToCart(itemId)} className={`w-7 h-7 flex items-center justify-center ${tmpl.btnRadius} text-white transition-all`} style={{ background: effectiveAccent }}><Plus className="w-3 h-3" /></button>
+        </div>
+      );
+    }
 
-  const handleAddToCart = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setCartCount(prev => prev + 1);
-    // Simple animation feedback on the clicked button
-    const button = event.currentTarget;
-    button.style.transform = 'scale(0.95)';
-    setTimeout(() => {
-      button.style.transform = 'scale(1)';
-    }, 150);
+    const sizeClass = small ? "py-1.5 text-[10px]" : "py-2 text-xs";
+    switch (activeButtonStyle) {
+      case "gradient":
+        return <button onClick={() => addToCart(itemId)} className={`w-full ${sizeClass} ${tmpl.btnRadius} font-semibold flex items-center justify-center gap-1.5 text-white`} style={{ background: effectiveGradient }}><Plus className="w-3 h-3" />{small ? "Add" : "Add to Cart"}</button>;
+      case "ghost":
+        return <button onClick={() => addToCart(itemId)} className={`w-full ${sizeClass} ${tmpl.btnRadius} font-medium flex items-center justify-center gap-1.5 hover:bg-muted transition-colors`} style={{ color: effectiveAccent }}><Plus className="w-3 h-3" />{small ? "Add" : "Add"}</button>;
+      case "glow":
+        return <button onClick={() => addToCart(itemId)} className={`w-full ${sizeClass} ${tmpl.btnRadius} font-semibold flex items-center justify-center gap-1.5 border text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/10 transition-all`} style={{ boxShadow: `0 0 8px ${effectiveAccent}30` }}><Plus className="w-3 h-3" />{small ? "Add" : "Add to Cart"}</button>;
+      case "filled":
+        return <button onClick={() => addToCart(itemId)} className={`w-full ${sizeClass} ${tmpl.btnRadius} font-semibold flex items-center justify-center gap-1.5 text-white`} style={{ background: effectiveAccent }}><Plus className="w-3 h-3" />{small ? "Add" : "Add to Cart"}</button>;
+      case "soft":
+        return <button onClick={() => addToCart(itemId)} className={`w-full ${sizeClass} ${tmpl.btnRadius} font-semibold flex items-center justify-center gap-1.5 transition-all`} style={{ background: effectiveAccent + "15", color: effectiveAccent }}><Plus className="w-3 h-3" />{small ? "Add" : "Add to Cart"}</button>;
+      case "bold":
+        return <button onClick={() => addToCart(itemId)} className={`w-full ${sizeClass} ${tmpl.btnRadius} font-black flex items-center justify-center gap-1.5 text-white shadow-lg uppercase tracking-wide`} style={{ background: effectiveGradient }}><Plus className="w-3 h-3" />{small ? "ADD" : "ADD TO CART"}</button>;
+      default: // outline
+        return <button onClick={() => addToCart(itemId)} className={`w-full ${sizeClass} ${tmpl.btnRadius} font-semibold flex items-center justify-center gap-1.5 border-2 transition-all`} style={{ borderColor: effectiveAccent, color: effectiveAccent, background: effectiveAccent + "08" }}><Plus className="w-3 h-3" />{small ? "Add" : "Add to Cart"}</button>;
+    }
   };
+
+  // -- Featured banner per template --
+  const renderFeaturedBanner = () => {
+    if (!showFeatured || selectedCategory !== "all") return null;
+    const featuredCount = stats.featuredCount;
+    if (featuredCount === 0) return null;
+    switch (activeFeaturedStyle) {
+      case "card":
+        return <div className="rounded-2xl p-4 text-white" style={{ background: effectiveGradient }}><div className="flex items-center gap-2 mb-1"><Crown className="w-4 h-4" /><span className="text-sm font-bold">Featured Collection</span></div><p className="text-xs opacity-80">{featuredCount} specially curated items</p></div>;
+      case "strip":
+        return <div className="flex items-center gap-2 py-2 border-b" style={{ borderColor: effectiveAccent + "30", color: effectiveAccent }}><Sparkles className="w-3 h-3" /><span className="text-xs font-medium tracking-wide uppercase">Featured items available</span></div>;
+      case "glow":
+        return <div className="rounded-xl p-3 border text-center" style={{ borderColor: effectiveAccent + "30", background: effectiveAccent + "08", boxShadow: `0 0 20px ${effectiveAccent}15` }}><span className="text-xs font-bold" style={{ color: effectiveAccent }}>⚡ {featuredCount} Featured Items</span></div>;
+      case "overlay":
+        return <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{ background: effectiveGradient }}><div className="absolute inset-0 bg-black/20" /><div className="relative z-10"><div className="flex items-center gap-2 mb-0.5"><Award className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-wider">Premium Selection</span></div><p className="text-[10px] opacity-80">{featuredCount} exclusive featured items</p></div></div>;
+      case "badge":
+        return <div className="flex items-center gap-2 p-3 rounded-2xl" style={{ background: effectiveAccent + "10" }}><Leaf className="w-4 h-4" style={{ color: effectiveAccent }} /><span className="text-xs font-bold" style={{ color: effectiveAccent }}>Chef's Picks — {featuredCount} items</span></div>;
+      case "wave":
+        return <div className="rounded-3xl p-4 text-white font-black" style={{ background: effectiveGradient }}><div className="flex items-center justify-between"><div><span className="text-xl">🔥</span><span className="text-sm ml-2 uppercase tracking-wider">HOT PICKS</span></div><span className="text-2xl">{featuredCount}</span></div></div>;
+      default: // banner
+        return <div className="rounded-xl p-3 flex items-center justify-between" style={selectedTheme !== "default" ? { background: currentTheme.gradient } : { background: effectiveAccent + "12", border: `1px solid ${effectiveAccent}20` }}><div className={selectedTheme !== "default" ? "text-white" : ""} style={selectedTheme === "default" ? { color: effectiveAccent } : {}}><div className="flex items-center gap-1.5 mb-0.5"><Flame className="w-3 h-3" /><span className="text-[10px] font-semibold uppercase tracking-wider">Featured Items</span></div><p className="text-xs opacity-80">Special discounts on featured items</p></div><div className="text-2xl">🔥</div></div>;
+    }
+  };
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   return (
-    <section
-      id="live-preview"
-      className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 bg-gradient-to-b from-background via-secondary/20 to-background relative overflow-hidden"
-    >
-      {/* Background Effects */}
-      <div className="absolute inset-0 opacity-40 pointer-events-none">
-        <div className="absolute top-20 left-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-orb"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-orb-delayed"></div>
-      </div>
-
-      <div className="container mx-auto relative z-10 max-w-7xl px-4 sm:px-6">
-        <div className="text-center mb-8 sm:mb-12 reveal">
-          <div className="inline-flex items-center gap-2 mb-3 sm:mb-4">
-            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-primary animate-pulse" />
-            <span className="text-xs sm:text-sm uppercase tracking-[0.2em] sm:tracking-[0.3em] text-primary/80 font-semibold">
-              Advanced Live Preview Tool
-            </span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-3 sm:mb-4 text-foreground px-2">
-            جرب قبل ما تشتري{" "}
-            <span className="text-primary">لأي نوع خدمة</span>
-          </h2>
-          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto px-2">
-            اختر نوع خدمتك واكتب الاسم - معاينة فورية لحظية
-          </p>
+    <section id="live-preview" className="relative overflow-hidden">
+      <div className="bg-gradient-to-b from-background via-[#0a1118] to-background relative">
+        {/* Ambient Glow */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/[0.08] rounded-full blur-[120px]" />
+          <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-[#00bcd4]/[0.05] rounded-full blur-[120px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-400/[0.06] rounded-full blur-[150px]" />
         </div>
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(0,188,212,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0,188,212,0.08) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
-        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {/* Left Sidebar - Customization Panel */}
-          <div className="lg:col-span-1 space-y-3 sm:space-y-4 reveal order-2 lg:order-1 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pb-4 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
-            {/* Service Type Selector */}
-            <div className="glass-card p-2.5 sm:p-3 rounded-xl glow-border-hover">
-              <label className="block text-foreground mb-2 font-semibold text-xs sm:text-sm">
-                نوع الخدمة
-              </label>
-              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                {serviceTypes.map((st) => (
-                  <button
-                    key={st.id}
-                    onClick={() => setServiceType(st.id)}
-                    className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 transition-all relative ${serviceType === st.id
-                      ? "border-primary ring-2 ring-primary/20 bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                      }`}
-                  >
-                    <div className="flex flex-col items-center gap-1 sm:gap-1.5">
-                      <div className={`${serviceType === st.id ? "text-primary" : "text-muted-foreground"} scale-90 sm:scale-100`}>
-                        {st.icon}
-                      </div>
-                      <span className="text-[10px] sm:text-xs font-medium text-foreground">{st.name}</span>
-                    </div>
-                    {serviceType === st.id && (
-                      <CheckCircle2 className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Main Input Card */}
-            <div className="glass-card p-3 sm:p-4 rounded-xl glow-border-hover">
-              <label
-                htmlFor="business-name"
-                className="block text-foreground mb-2 sm:mb-3 font-semibold text-sm sm:text-base"
+        <div className="container mx-auto relative z-10 max-w-[1440px] px-4 sm:px-6 py-12 sm:py-16 md:py-20">
+          {/* ============ STUDIO HEADER ============ */}
+          <div className="text-center mb-8 sm:mb-12">
+            <motion.div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/[0.08] border border-primary/20" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(0,188,212,0.5)]" />
+              <span className="text-xs uppercase tracking-[0.3em] text-primary font-semibold">{t("استوديو التصميم المباشر", "Live Design Studio")}</span>
+              {studioLocked && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-400/15 to-orange-400/10 px-2.5 py-1 text-[10px] font-black text-amber-200 tracking-[0.18em] uppercase shadow-[0_0_20px_rgba(251,191,36,0.12)]">
+                  <Lock className="w-3 h-3" />
+                  {t("قريبًا", "Coming Soon")}
+                </span>
+              )}
+            </motion.div>
+            <motion.h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 text-foreground" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              {t("صمّم تطبيقك", "Design Your App")}{" "}<span className="bg-gradient-to-r from-primary via-[#64ffda] to-[#00bcd4] bg-clip-text text-transparent">{t("في الوقت الحقيقي", "In Real-Time")}</span>
+            </motion.h2>
+            <motion.p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              {t("اختر نوع نشاطك، حدّد القالب، خصّص كل تفصيلة، وشاهد تطبيقك ينبض بالحياة.", "Choose your business type, pick a template, customize every detail, and see your app come to life")}
+            </motion.p>
+            {studioLocked && (
+              <motion.button
+                type="button"
+                onClick={() => setShowStudioInfoModal(true)}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-gradient-to-r from-cyan-500/10 to-emerald-400/10 px-4 py-2 text-xs font-bold text-cyan-200 hover:from-cyan-500/20 hover:to-emerald-400/20 transition-all"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
               >
-                اسم {currentServiceType.name}
-              </label>
-              <div className="relative">
-                <input
-                  id="business-name"
-                  type="text"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  className="w-full px-3 py-2 sm:py-2.5 bg-input border-2 border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-foreground font-medium text-sm"
-                  placeholder={currentServiceType.placeholder}
-                  maxLength={30}
-                />
-                {businessName.trim() && (
-                  <CheckCircle2 className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-primary animate-fade-in" />
+                <Info className="w-3.5 h-3.5" />
+                {t("استعرض تجربة قريبًا", "Preview The Coming Soon Experience")}
+              </motion.button>
+            )}
+            {studioLocked && (
+              <motion.div
+                className="mt-4 mx-auto max-w-3xl overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(251,191,36,0.14)_0%,rgba(34,211,238,0.10)_50%,rgba(16,185,129,0.10)_100%)] px-4 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-left">
+                    <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.35em] text-amber-200/90">
+                      {t("تحميل محرك الإبداع", "Creative Engine Loading")}
+                    </p>
+                    <p className="mt-2 text-sm sm:text-base font-semibold text-white">
+                      {t("يتم الآن تجهيز استوديو التصميم المباشر خلف الكواليس وسيُفتح قريبًا.", "Live Design Studio is being crafted behind the scenes and will unlock soon.")}
+                    </p>
+                    <p className="mt-1 text-xs sm:text-sm text-cyan-100/80">
+                      {t("التنسيق اللحظي، والتبديل الفوري للتخطيطات، وتحرير فكرة التطبيق التفاعلي في الطريق.", "Real-time styling, instant layout switching, and interactive app concept editing are on the way.")}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-white/80 sm:min-w-[260px]">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">{t("الثيمات", "Themes")}</div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">{t("التخطيطات", "Layouts")}</div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">{t("الحركة", "Motion")}</div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+
+          {/* ============ MAIN STUDIO LAYOUT ============ */}
+          <div className="relative flex flex-col xl:flex-row gap-6 lg:gap-8">
+
+            {/* ========== LEFT: DESIGN STUDIO PANEL ========== */}
+            <motion.div className={`hidden xl:block xl:w-[380px] flex-shrink-0 order-2 xl:order-1 ${studioLocked ? "pointer-events-none select-none opacity-70" : ""}`} initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+              <div className="xl:sticky xl:top-24 space-y-4">
+                <div className="relative glass-card rounded-2xl overflow-hidden shadow-xl shadow-primary/[0.05]">
+                  <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-primary/15 via-cyan-200/10 to-transparent pointer-events-none z-0" />
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl z-0">
+                    <div className="absolute -top-20 -right-20 w-48 h-48 bg-primary/[0.06] rounded-full blur-[80px]" />
+                    <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-violet-400/[0.04] rounded-full blur-[80px]" />
+                  </div>
+
+                  {/* Studio Header */}
+                  <div className="p-4 pb-2 relative z-10">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/15 to-cyan-400/10 border border-primary/15 flex items-center justify-center"><Layers size={16} className="text-primary" /></div>
+                        <div><h2 className="text-sm font-bold text-foreground">Design Studio</h2><p className="text-[10px] text-muted-foreground">Customize everything</p></div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={handleResetAll} className="w-7 h-7 rounded-lg bg-black/40 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all" title="Reset All" aria-label="Reset all studio settings"><RotateCcw size={12} /></button>
+                        <button className="w-7 h-7 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/20 flex items-center justify-center text-purple-400 hover:border-purple-500/40 transition-all hover:scale-105 active:scale-95" title="AI Generate" aria-label="Apply AI style preset" onClick={handleApplyAiPreset}><Wand2 size={12} /></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tabs */}
+                  <div className="px-4 mb-2 relative z-10">
+                    <div className="flex bg-muted/80 border border-slate-200/60 p-0.5 rounded-xl overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                      {studioTabs.map((tab) => {
+                        const Icon = tab.icon; const isActive = activeStudioTab === tab.id; return (
+                          <button key={tab.id} onClick={() => setActiveStudioTab(tab.id)} className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[10px] font-bold transition-all duration-300 whitespace-nowrap ${isActive ? 'bg-primary text-white shadow-[0_0_12px_rgba(0,188,212,0.25)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/10'}`}><Icon size={12} /><span className="hidden sm:inline">{tab.label}</span></button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tab Content */}
+                  <div className="px-4 py-3 relative z-10 overflow-y-auto max-h-[520px]" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,188,212,0.15) transparent' }}>
+                    <AnimatePresence mode="wait">
+                      {/* ===== BRAND TAB ===== */}
+                      {activeStudioTab === "brand" && (
+                        <BrandTab
+                          businessName={businessName}
+                          setBusinessName={setBusinessName}
+                          tagline={tagline}
+                          setTagline={setTagline}
+                          logoEmoji={logoEmoji}
+                          setLogoEmoji={setLogoEmoji}
+                          isOpen={isOpen}
+                          setIsOpen={setIsOpen}
+                          brandPersonality={brandPersonality}
+                          setBrandPersonality={setBrandPersonality}
+                          rating={rating}
+                          setRating={setRating}
+                          openTime={openTime}
+                          setOpenTime={setOpenTime}
+                          closeTime={closeTime}
+                          setCloseTime={setCloseTime}
+                          bio={bio}
+                          setBio={setBio}
+                          serviceType={serviceType}
+                          setServiceType={setServiceType}
+                          serviceTypesConfig={serviceTypesConfig}
+                          iconComponents={iconComponents}
+                        />
+                      )}
+
+                      {/* ===== CONTENT TAB ===== */}
+                      {activeStudioTab === "content" && (
+                        <ContentTab
+                          showRatings={showRatings}
+                          setShowRatings={setShowRatings}
+                          showTime={showTime}
+                          setShowTime={setShowTime}
+                          showFeatured={showFeatured}
+                          setShowFeatured={setShowFeatured}
+                          showPrices={showPrices}
+                          setShowPrices={setShowPrices}
+                          featuredOnly={featuredOnly}
+                          setFeaturedOnly={setFeaturedOnly}
+                          imageQuality={imageQuality}
+                          setImageQuality={setImageQuality}
+                          sortBy={sortBy}
+                          setSortBy={setSortBy}
+                          customItems={customItems}
+                          allMenuItems={allMenuItems}
+                          effectiveAccent={effectiveAccent}
+                          historyIndex={historyIndex}
+                          itemHistoryLength={itemHistory.length}
+                          onUndo={undo}
+                          onRedo={redo}
+                          onAddItem={() => { setEditingItem(null); setShowAddItem(true); }}
+                          onEditItem={(item) => { setEditingItem(item); setShowAddItem(true); }}
+                          onDeleteItem={handleDeleteItem}
+                          onReorderItem={handleReorderItem}
+                          onClearAllItems={handleClearAllCustomItems}
+                        />
+                      )}
+
+                      {/* ===== TEMPLATE TAB ===== */}
+                      {activeStudioTab === "template" && (
+                        <TemplateTab
+                          cardStyle={t1CardStyle}
+                          setCardStyle={setT1CardStyle}
+                          navStyle={t1NavStyle}
+                          setNavStyle={setT1NavStyle}
+                          buttonStyle={t1ButtonStyle}
+                          setButtonStyle={setT1ButtonStyle}
+                          accent={effectiveAccent}
+                        />
+                      )}
+
+                      {/* ===== EXPORT TAB ===== */}
+                      {activeStudioTab === "export" && (
+                        <ExportTab
+                          onExportJson={exportData}
+                          onExportCsv={exportToCSV}
+                          onImport={importData}
+                          onCopyLink={copyShareLink}
+                          onShowQR={() => setShowQRModal(true)}
+                          copied={copied}
+                        />
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  <div className="p-3 bg-background/60 border-t border-border/40 flex justify-between items-center text-[10px] text-muted-foreground px-4 relative z-10">
+                    <SyncOrb isSaving={isSaving} lastSavedAt={lastSavedAt} isAuthenticated={isAuthenticated} effectiveAccent={effectiveAccent} />
+                    {!isAuthenticated && <span className="flex items-center gap-1"><CloudOff size={10} />Login to save</span>}
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: effectiveAccent, boxShadow: `0 0 6px ${effectiveAccent}80` }} />
+                      <span style={{ color: `${effectiveAccent}80` }}>Live</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats Card */}
+                {isPreviewVisible && (
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/70 backdrop-blur-xl rounded-2xl border border-primary/10 p-4 relative overflow-hidden shadow-lg shadow-primary/[0.03]">
+                    <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-primary/10 via-transparent to-transparent pointer-events-none" />
+                    <div className="flex items-center justify-between mb-3 relative z-10"><div className="flex items-center gap-2"><BarChart3 size={14} className="text-primary" /><span className="text-xs font-bold text-muted-foreground">Analytics</span></div><button onClick={() => setShowStats(!showStats)} className="text-slate-300 hover:text-slate-500">{showStats ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div>
+                    <AnimatePresence>{showStats && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="relative z-10">
+                        <div className="grid grid-cols-2 gap-2">{[{ label: "Total Items", value: stats.totalItems, color: "#00bcd4" }, { label: "Total Value", value: `${stats.totalValue.toFixed(0)} EGP`, color: "#a78bfa" }, { label: "Avg Price", value: `${stats.averagePrice.toFixed(0)} EGP`, color: "#f472b6" }, { label: "Featured", value: stats.featuredCount, color: "#fbbf24" }].map((stat) => (<motion.div key={stat.label} className="bg-background/80 rounded-xl p-3 border border-slate-200/60" whileHover={{ scale: 1.02 }}><div className="text-[9px] text-slate-400 mb-1">{stat.label}</div><motion.div className="text-lg font-bold" style={{ color: stat.color }} key={String(stat.value)} initial={{ opacity: 0.4, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>{stat.value}</motion.div></motion.div>))}</div>
+                      </motion.div>
+                    )}</AnimatePresence>
+                  </motion.div>
                 )}
               </div>
-            </div>
+            </motion.div>
 
-            {/* Customization Panel - Compact Design */}
-            <div className="glass-card p-2.5 sm:p-3 rounded-xl">
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                  <span className="font-semibold text-xs sm:text-sm">خيارات التخصيص</span>
-                </div>
-                <button
-                  onClick={() => setShowCustomization(!showCustomization)}
-                  className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
-                >
-                  {showCustomization ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
+            {/* ========== CENTER: DEVICE PREVIEW ========== */}
+            <motion.div className="flex-1 flex flex-col items-center justify-start order-1 xl:order-2" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <div className="relative">
+                {/* perspective must be on PARENT, not on the rotating child */}
+                <div style={{ perspective: enable3D ? "1200px" : "none" }}>
+                  <motion.div className="relative transition-all duration-500" style={{ width: deviceView === "mobile" ? 300 : deviceView === "tablet" ? 500 : 720, height: deviceView === "mobile" ? 640 : deviceView === "tablet" ? 700 : 480, maxWidth: "100%", transformStyle: "preserve-3d" }} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}
+                    animate={enable3D ? { rotateY: isHovering ? 3 + rotationY : rotationY, rotateX: isHovering ? -2 + rotationX : rotationX, scale: isHovering ? 1.02 : 1 } : { rotateY: 0, rotateX: 0, scale: 1 }}
+                    transition={{ type: "spring", stiffness: 100, damping: 20 }}
+                  >
 
-              {showCustomization && (
-                <div className="space-y-3 animate-fade-in border-t border-border pt-3 max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
-                  {/* Theme Selector - Compact Grid */}
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Palette className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-xs font-semibold text-foreground">الألوان</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {themes.map((theme) => (
-                        <button
-                          key={theme.id}
-                          onClick={() => setSelectedTheme(theme.id)}
-                          className={`p-2 rounded-lg border-2 transition-all relative ${selectedTheme === theme.id
-                            ? "border-primary ring-1 ring-primary/30"
-                            : "border-border hover:border-primary/50"
-                            }`}
-                        >
-                          <div
-                            className="w-full h-6 rounded-md mb-1"
-                            style={{ background: theme.gradient }}
-                          />
-                          <div className="text-[10px] font-medium text-foreground text-center">{theme.name}</div>
-                          {selectedTheme === theme.id && (
-                            <CheckCircle2 className="absolute top-1 right-1 w-3 h-3 text-primary" />
+                    <motion.div className="absolute -inset-8 rounded-[3rem] blur-3xl pointer-events-none" style={{ backgroundColor: effectiveAccent + "15" }} animate={{ opacity: isHovering && enable3D ? 0.8 : 0.5, scale: isHovering ? 1.05 : 1 }} transition={{ duration: 0.3 }} />
+
+                    {/* DEVICE FRAME — mobile: phone notch, tablet: iPad-style, desktop: browser chrome */}
+                    <motion.div ref={phoneRef}
+                      className={`relative mx-auto shadow-2xl transition-all duration-500 ${deviceView === "mobile" ? "rounded-[2rem] border-[3px] border-white/10 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-2"
+                        : deviceView === "tablet" ? "rounded-[1.5rem] border-[6px] border-slate-800 bg-slate-900 p-0"
+                          : "rounded-xl border-[3px] border-slate-700 bg-slate-900 p-0"
+                        } ${isPreviewVisible ? "opacity-100 scale-100" : "opacity-30 scale-95"}`}
+                      style={{ width: deviceView === "mobile" ? 300 : deviceView === "tablet" ? 500 : 720, height: deviceView === "mobile" ? 640 : deviceView === "tablet" ? 700 : 480, fontSize: `${fontSize * 0.9}rem`, transformStyle: "preserve-3d" }}>
+
+                      {/* Mobile: notch */}
+                      {deviceView === "mobile" && <div className="absolute top-1 left-1/2 -translate-x-1/2 w-24 h-6 bg-slate-900 rounded-b-2xl z-20 flex items-center justify-center gap-2"><div className="w-2 h-2 rounded-full bg-slate-700" /><div className="w-10 h-1 rounded-full bg-slate-700" /></div>}
+                      {/* Tablet: home button indicator at bottom */}
+                      {deviceView === "tablet" && <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-16 h-1 bg-slate-600 rounded-full z-20" />}
+                      {/* Desktop: browser chrome bar */}
+                      {deviceView === "desktop" && (
+                        <div className="absolute top-0 left-0 right-0 h-8 bg-slate-800 rounded-t-lg flex items-center px-3 gap-2 z-20 border-b border-slate-700">
+                          <div className="flex gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500/70" /><div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" /><div className="w-2.5 h-2.5 rounded-full bg-green-500/70" /></div>
+                          <div className="flex-1 mx-2 bg-slate-700 rounded px-2 py-0.5 text-[9px] text-slate-400 truncate">{displayName || "your-app.com"}</div>
+                        </div>
+                      )}
+
+                      {/* SCREEN */}
+                      <div className={`relative overflow-hidden shadow-xl flex flex-col ${deviceView === "mobile" ? "rounded-[1.5rem]"
+                        : deviceView === "tablet" ? "rounded-[1rem]"
+                          : "rounded-b-lg rounded-t-none mt-8"
+                        } ${isDarkMode ? tmpl.screenBgDark : tmpl.screenBg}`} style={{ height: deviceView === "desktop" ? "calc(100% - 2rem)" : "100%", fontSize: `${fontSize}rem` }}>
+                        <Template1Screen
+                          displayName={displayName}
+                          isDarkMode={isDarkMode}
+                          accent={effectiveAccent}
+                          gradient={effectiveGradient}
+                          tagline={tagline}
+                          logoEmoji={logoEmoji}
+                          rating={rating}
+                          isOpen={isOpen}
+                          openTime={openTime}
+                          closeTime={closeTime}
+                          showRatings={showRatings}
+                          showPrices={showPrices}
+                          showFeatured={showFeatured}
+                          bio={bio}
+                          cardStyle={t1CardStyle}
+                          navStyle={t1NavStyle}
+                          buttonStyle={t1ButtonStyle}
+                        />
+                        {/* Texture Overlay */}
+                        {activeTexture !== 'none' && <div className="absolute inset-0 z-50 pointer-events-none opacity-20 mix-blend-overlay" style={{ backgroundImage: activeTexture === 'noise' ? `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` : activeTexture === 'grid' ? `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)` : `radial-gradient(#000 1px, transparent 1px)`, backgroundSize: activeTexture === 'grid' ? '20px 20px' : activeTexture === 'dots' ? '10px 10px' : 'auto' }} />}
+
+                        {/* WEB CATEGORY OVERLAY — covers entire screen when previewMode=web */}
+                        {previewMode === "web" && (
+                          <div className="absolute inset-0 z-[25] overflow-hidden flex flex-col">
+                            <WebSiteTemplate
+                              displayName={displayName}
+                              serviceType={serviceType}
+                              accent={effectiveAccent}
+                              gradient={effectiveGradient}
+                              isDarkMode={isDarkMode}
+                              filteredItems={filteredItems}
+                              categories={categories}
+                              stats={stats}
+                              showRatings={showRatings}
+                              showFeatured={showFeatured}
+                              showPrices={showPrices}
+                              addToCart={(itemId) => addToCart(itemId)}
+                              clearCart={() => setCartItems({})}
+                              setSelectedImage={setSelectedImage}
+                              isPreviewVisible={isPreviewVisible}
+                              searchQuery={searchQuery}
+                              setSearchQuery={setSearchQuery}
+                              selectedCategory={selectedCategory}
+                              setSelectedCategory={setSelectedCategory}
+                              cartCount={cartCount}
+                              favorites={favorites}
+                              setFavorites={setFavorites}
+                              rating={rating}
+                              isOpen={isOpen}
+                            />
+                          </div>
+                        )}
+
+                        {/* Status Bar */}
+                        <div className={`px-4 py-1 flex items-center justify-between text-[10px] flex-shrink-0 ${isNeonTemplate || isDarkMode ? "bg-black text-white" : "bg-slate-900 text-white"}`}><span className="font-medium">9:41</span><div className="flex items-center gap-1.5"><Signal size={10} /><Wifi size={10} /><Battery size={10} /></div></div>
+
+                        {/* APP HEADER — template-aware */}
+                        <div className={`px-4 ${activeHeaderStyle === "compact" ? "py-2" : "py-3"} flex items-center justify-between relative overflow-hidden flex-shrink-0 ${headerStyleClass} ${glassEffect ? "backdrop-blur-md bg-white/5 border-b border-white/10" : isDarkMode ? tmpl.headerBgDark : (selectedTheme !== "default" ? "" : tmpl.headerBg)}`} style={{ ...headerBaseStyle, ...headerStyleOverride }}>
+                          <div className={`relative z-10 flex items-center gap-2 flex-1 min-w-0 ${activeHeaderStyle === "centered" ? "justify-center text-center" : ""}`}>
+                            {logoEmoji && (
+                              <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center text-base bg-white/15 backdrop-blur-sm border border-white/10">
+                                {logoEmoji}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              {(tagline || tmpl.headerShowSubtitle) && <p className={`text-[9px] uppercase tracking-[0.2em] mb-0.5 ${headerTextWhite || glassEffect ? "text-white/60" : "text-slate-400"} ${brandPersonality === "premium" ? "italic" : ""}`}>{tagline ? (brandPersonality === "bold" ? tagline.toUpperCase() : tagline) : t("معاينة مباشرة", "Live Preview")}</p>}
+                              <p className={`${tmpl.headerNameSize} font-bold ${headerTextWhite || glassEffect ? "text-white" : "text-foreground"} truncate`}>{displayName}</p>
+                              {tmpl.headerShowRating && <div className="flex items-center gap-1.5 mt-0.5"><Star className={`w-2.5 h-2.5 fill-yellow-400 text-yellow-400`} /><span className={`text-[10px] ${headerTextWhite || glassEffect ? "text-white/80" : "text-muted-foreground"}`}>{rating.toFixed(1)}</span><span className={`text-[10px] font-medium ${isOpen ? "text-emerald-400" : headerTextWhite || glassEffect ? "text-white/50" : "text-slate-400"}`}>• {isOpen ? `${t("مفتوح", "Open")} · ${localizedOpenTime}–${localizedCloseTime}` : t("مغلق", "Closed")}</span></div>}
+                            </div>
+                          </div>
+                          <div className="relative z-10 flex items-center gap-1.5">
+                            {currentPage === "menu" && <button onClick={() => setShowSearch(!showSearch)} className={`p-1.5 rounded-lg ${showSearch ? "bg-white/20" : ""} transition-colors`}><Search className={`w-4 h-4 ${headerTextWhite || glassEffect ? "text-white" : "text-slate-700"}`} /></button>}
+                            {currentPage === "home" && notifications > 0 && <button onClick={() => setNotifications(0)} className="p-1.5 rounded-lg relative"><Bell className={`w-4 h-4 ${headerTextWhite || glassEffect ? "text-white" : "text-slate-700"}`} /><span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white">{notifications}</span></button>}
+                            <div className="relative"><ShoppingCart className={`w-5 h-5 ${headerTextWhite || glassEffect ? "text-white" : "text-slate-700"}`} />{cartCount > 0 && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">{cartCount}</span>}</div>
+                          </div>
+                        </div>
+
+                        {/* Search */}
+                        {showSearch && currentPage === "menu" && (
+                          <div className={`px-4 py-2 border-b ${isNeonTemplate ? "bg-slate-900 border-slate-800" : isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
+                            <div className={`relative ${searchWrapClass}`}><Search className={`absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-400"}`} /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className={`w-full pl-8 pr-8 py-1.5 text-xs focus:outline-none ${searchInputClass} ${isNeonTemplate || isDarkMode ? "bg-slate-800 border-slate-700 text-white placeholder:text-slate-500" : "bg-background border-slate-200 text-foreground"}`} />{searchQuery && <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-slate-400" /></button>}</div>
+                          </div>
+                        )}
+
+
+
+                        {/* ===== MAIN CONTENT ===== */}
+                        <div className={`${activeNavPlacement === "side" ? "flex-1 min-h-0 flex" : "flex-1 min-h-0"}`}>
+                          {isPreviewVisible && activeNavPlacement === "side" && (
+                            <AppNavigation
+                              currentPage={currentPage}
+                              cartCount={cartCount}
+                              onNavigate={navigatePage}
+                              styleVariant={activeNavStyle}
+                              placement="side"
+                              effectiveAccent={effectiveAccent}
+                              effectiveGradient={effectiveGradient}
+                              isDarkLike={isNeonTemplate || isDarkMode}
+                            />
                           )}
+                          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', minHeight: 0 }}>
+                            {isPreviewVisible ? (
+                              <AnimatePresence mode="wait" custom={pageDirection}>
+                                <motion.div key={currentPage} className="p-3 space-y-3"
+                                  custom={pageDirection}
+                                  initial={(dir: number) => ({ opacity: 0, x: dir * 40 })}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={(dir: number) => ({ opacity: 0, x: dir * -40 })}
+                                  transition={{ duration: 0.22, ease: "easeInOut" }}>
+                                  {/* =========== HOME PAGE =========== */}
+                                  {currentPage === "home" && (
+                                    <div className="space-y-3">
+                                      {/* Promo Carousel — pauses on hover, dots are clickable */}
+                                      <div
+                                        className={`relative ${tmpl.cardRadius} overflow-hidden`}
+                                        style={{ minHeight: 110 }}
+                                        onMouseEnter={() => setPromoHovered(true)}
+                                        onMouseLeave={() => setPromoHovered(false)}
+                                      >
+                                        <AnimatePresence mode="popLayout">
+                                          <motion.div key={promoIndex} initial={{ opacity: 0, x: 32 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -32, position: "absolute", top: 0, left: 0, right: 0 }} transition={{ duration: 0.28 }} className="p-4 text-white" style={{ minHeight: 110, background: promoIndex === 0 ? effectiveGradient : promoIndex === 1 ? "linear-gradient(135deg, #f59e0b, #ef4444)" : "linear-gradient(135deg, #8b5cf6, #6366f1)" }}>
+                                            {promoIndex === 0 && <div><h3 className="text-lg font-bold mb-1">Welcome to {displayName}</h3><p className="text-xs opacity-90">Explore our amazing offerings</p></div>}
+                                            {promoIndex === 1 && <div><div className="flex items-center gap-1 mb-1"><Flame className="w-4 h-4" /><span className="text-sm font-bold uppercase tracking-wide">Today's Special</span></div><p className="text-xs opacity-90">20% off on all featured items</p></div>}
+                                            {promoIndex === 2 && <div><div className="flex items-center gap-1 mb-1"><ZapIcon className="w-4 h-4" /><span className="text-sm font-bold">New Arrivals</span></div><p className="text-xs opacity-90">Check out our latest additions</p></div>}
+                                          </motion.div>
+                                        </AnimatePresence>
+                                        {/* Interactive dots */}
+                                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">{[0, 1, 2].map(i => <button key={i} onClick={() => setPromoIndex(i)} aria-label={`Promo ${i + 1}`} className={`h-1.5 rounded-full transition-all bg-white ${promoIndex === i ? "w-4 opacity-100" : "w-1.5 opacity-40 hover:opacity-70"}`} />)}</div>
+                                      </div>
+
+                                      {/* Quick Stats */}
+                                      <div className="grid grid-cols-3 gap-2">{[{ v: stats.totalItems, l: "Items", icon: "📦" }, { v: rating.toFixed(1), l: "Rating", icon: "⭐" }, { v: stats.featuredCount, l: "Featured", icon: "🔥" }].map(({ v, l, icon }) => (<div key={l} className={`${tmpl.cardRadius} ${statsCardClass} ${isDarkMode || isNeonTemplate ? tmpl.cardBgDark + " " + tmpl.cardBorderDark : tmpl.cardBg + " " + tmpl.cardBorder} p-2 text-center`}><div className="text-sm mb-0.5">{icon}</div><div className="text-lg font-bold" style={{ color: effectiveAccent }}>{v}</div><div className={`text-[10px] ${isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{l}</div></div>))}</div>
+
+                                      {/* Popular Items — only shown when featured items exist */}
+                                      {filteredItems.some(i => i.featured) && (
+                                        <div><h4 className={`text-sm font-bold mb-2 ${isNeonTemplate || isDarkMode ? "text-white" : "text-foreground"}`}>Most Popular</h4><div className="space-y-2">{filteredItems.filter(i => i.featured).slice(0, 3).map((item) => (<div key={item.id} className={`${tmpl.cardRadius} ${tmpl.cardShadow} ${cardStyleClass} ${isDarkMode || isNeonTemplate ? tmpl.cardBgDark + " " + tmpl.cardBorderDark : tmpl.cardBg + " " + tmpl.cardBorder} p-2 flex gap-2`}><div className={`w-12 h-12 ${tmpl.cardImageRadius} overflow-hidden flex-shrink-0`}><img src={item.image} alt={item.name} className="w-full h-full object-cover" /></div><div className="flex-1 min-w-0"><h5 className={`text-xs font-bold ${isNeonTemplate || isDarkMode ? "text-white" : "text-foreground"}`}>{item.name}</h5><p className={`text-[10px] line-clamp-1 ${isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{item.description}</p>{showPrices && <span className={`text-xs font-bold ${priceClass}`} style={{ color: effectiveAccent }}>{item.price} EGP</span>}</div></div>))}</div></div>
+                                      )}
+
+                                      <button onClick={() => setCurrentPage("menu")} className={`w-full py-2.5 ${tmpl.btnRadius} font-semibold text-xs flex items-center justify-center gap-1.5 text-white`} style={{ background: effectiveGradient }}>Browse All Menu <ArrowRight className="w-3 h-3" /></button>
+                                    </div>
+                                  )}
+
+                                  {/* =========== MENU PAGE =========== */}
+                                  {currentPage === "menu" && (
+                                    <>
+                                      {/* Categories — with right-side fade scroll hint */}
+                                      <div className="relative -mx-3">
+                                        <div className={`flex gap-1.5 overflow-x-auto pb-1.5 px-3 ${activeCategoryStyle === "underline" ? "border-b border-slate-200" : ""}`} style={{ scrollbarWidth: 'none' }}>
+                                          {categories.map((cat) => renderCategory(cat, selectedCategory === cat.id))}
+                                        </div>
+                                        <div className="absolute right-0 top-0 bottom-1.5 w-6 bg-gradient-to-l from-background/80 to-transparent pointer-events-none" />
+                                      </div>
+
+                                      {/* Featured Banner */}
+                                      {renderFeaturedBanner()}
+
+                                      {/* Items */}
+                                      <AnimatePresence mode="wait">
+                                        {viewMode === "list" ? (
+                                          <motion.div key="list" className="space-y-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                                            {filteredItems.map((item, index) => {
+                                              // Elegant overlay card
+                                              if (tmpl.cardOverlayText) return (
+                                                <div key={item.id} className={`${tmpl.cardRadius} ${tmpl.cardShadow} ${isDarkMode ? tmpl.cardBorderDark : tmpl.cardBorder} overflow-hidden relative group`} style={{ animationDelay: `${index * 0.05}s` }}>
+                                                  <div className="relative h-32 cursor-pointer" onClick={() => setSelectedImage(item.image)}>
+                                                    <img src={getImgSrc(item.image)} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                                                    <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                                                      <div className="flex items-start justify-between mb-0.5"><h3 className="font-bold text-sm">{item.name}</h3>{showPrices && <span className="font-bold text-sm" style={{ color: effectiveAccent }}>{item.price} EGP</span>}</div>
+                                                      <p className="text-[10px] text-white/70 line-clamp-1 mb-1.5">{item.description}</p>
+                                                      {(showRatings || showTime) && <div className="flex items-center gap-2 text-[10px] text-white/60">{item.rating && showRatings && <div className="flex items-center gap-0.5"><Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />{item.rating}</div>}{item.time && showTime && <div className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{item.time}</div>}</div>}
+                                                    </div>
+                                                    {item.featured && showFeatured && <div className="absolute top-2 right-2 px-2 py-0.5 text-[9px] font-bold text-white rounded-full" style={{ background: effectiveGradient }}><Crown className="w-2.5 h-2.5 inline mr-0.5" />Premium</div>}
+                                                    <button onClick={(e) => { e.stopPropagation(); setFavorites(p => p.includes(item.id) ? p.filter(id => id !== item.id) : [...p, item.id]); }} className="absolute top-2 left-2 p-1.5 bg-white/20 backdrop-blur-sm rounded-full"><Heart className={`w-3.5 h-3.5 ${favorites.includes(item.id) ? "fill-red-500 text-red-500" : "text-white"}`} /></button>
+                                                  </div>
+                                                  <div className="p-2.5">{renderAddBtn(item.id)}</div>
+                                                </div>
+                                              );
+
+                                              // Standard list card
+                                              return (
+                                                <div key={item.id} className={`${tmpl.cardRadius} ${tmpl.cardShadow} ${cardStyleClass} overflow-hidden transition-all ${isDarkMode || isNeonTemplate ? tmpl.cardBgDark + " " + tmpl.cardBorderDark : tmpl.cardBg + " " + tmpl.cardBorder}`} style={{ animationDelay: `${index * 0.05}s` }}>
+                                                  <div className="flex gap-2 p-2">
+                                                    <div className={`relative ${tmpl.cardImageRadius} overflow-hidden flex-shrink-0 cursor-pointer group`} style={{ width: 72, height: 72 }} onClick={() => setSelectedImage(item.image)}>
+                                                      <img src={getImgSrc(item.image)} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" loading="lazy" />
+                                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center"><ZoomIn className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" /></div>
+                                                      {item.featured && showFeatured && <div className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[8px] px-1 py-0.5 rounded-full font-bold flex items-center gap-0.5 z-10"><Star className="w-2 h-2 fill-white" /></div>}
+                                                      <button onClick={(e) => { e.stopPropagation(); setFavorites(p => p.includes(item.id) ? p.filter(id => id !== item.id) : [...p, item.id]); }} className="absolute bottom-0.5 left-0.5 p-1 bg-white/90 backdrop-blur-sm rounded-full z-10"><Heart className={`w-3 h-3 ${favorites.includes(item.id) ? "fill-red-500 text-red-500" : "text-slate-400"}`} /></button>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                      <div className="flex items-start justify-between gap-1.5 mb-0.5"><h3 className={`font-bold text-sm leading-tight ${isNeonTemplate || isDarkMode ? "text-white" : "text-foreground"}`}>{item.name}</h3>{showPrices && <span className={`font-bold whitespace-nowrap text-xs ${priceClass}`} style={{ color: effectiveAccent }}>{item.price} EGP</span>}</div>
+                                                      <p className={`mb-1 line-clamp-2 text-xs ${isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{item.description}</p>
+                                                      {(showRatings || showTime) && <div className={`flex items-center gap-2 text-[10px] ${isNeonTemplate || isDarkMode ? "text-slate-500" : "text-slate-400"}`}>{item.rating && showRatings && <div className="flex items-center gap-0.5"><Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />{item.rating}</div>}{item.time && showTime && <div className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{item.time}</div>}</div>}
+                                                    </div>
+                                                  </div>
+                                                  <div className="px-2 pb-2">{renderAddBtn(item.id)}</div>
+                                                </div>
+                                              );
+                                            })}
+                                          </motion.div>
+                                        ) : (
+                                          <motion.div key="grid" className="grid grid-cols-2 gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                                            {filteredItems.map((item, index) => (
+                                              <motion.div key={item.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.03, duration: 0.18 }} className={`${tmpl.cardRadius} ${tmpl.cardShadow} ${cardStyleClass} overflow-hidden transition-all ${isDarkMode || isNeonTemplate ? tmpl.cardBgDark + " " + tmpl.cardBorderDark : tmpl.cardBg + " " + tmpl.cardBorder}`}>
+                                                <div className={`relative aspect-square cursor-pointer group`} onClick={() => setSelectedImage(item.image)}>
+                                                  <img src={getImgSrc(item.image)} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" loading="lazy" />
+                                                  {item.featured && showFeatured && <div className="absolute top-1 right-1 text-[8px] px-1.5 py-0.5 rounded-full font-bold z-10 text-white" style={{ background: effectiveGradient }}><Star className="w-2 h-2 fill-white inline" /></div>}
+                                                  <button onClick={(e) => { e.stopPropagation(); setFavorites(p => p.includes(item.id) ? p.filter(id => id !== item.id) : [...p, item.id]); }} className="absolute bottom-1 left-1 p-1 bg-white/90 rounded-full z-10"><Heart className={`w-3 h-3 ${favorites.includes(item.id) ? "fill-red-500 text-red-500" : "text-slate-400"}`} /></button>
+                                                </div>
+                                                <div className="p-2">
+                                                  <h3 className={`font-bold text-xs leading-tight mb-0.5 line-clamp-1 ${isNeonTemplate || isDarkMode ? "text-white" : "text-foreground"}`}>{item.name}</h3>
+                                                  <p className={`mb-1.5 line-clamp-1 text-[10px] ${isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{item.description}</p>
+                                                  <div className="flex items-center justify-between mb-1.5">{showPrices && <span className={`text-xs font-bold ${priceClass}`} style={{ color: effectiveAccent }}>{item.price} EGP</span>}{item.rating && showRatings && <div className="flex items-center gap-0.5"><Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" /><span className="text-[10px]">{item.rating}</span></div>}</div>
+                                                  {renderAddBtn(item.id, true)}
+                                                </div>
+                                              </motion.div>
+                                            ))}
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                      {filteredItems.length === 0 && <div className="text-center py-8"><p className={`text-sm ${isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-500"}`}>No items found</p></div>}
+                                    </>
+                                  )}
+
+                                  {/* =========== CART PAGE =========== */}
+                                  {currentPage === "cart" && (
+                                    <div className="space-y-3">
+                                      {cartCount > 0 ? (
+                                        <div className={`${tmpl.cardRadius} ${cardStyleClass} ${isDarkMode || isNeonTemplate ? tmpl.cardBgDark + " " + tmpl.cardBorderDark : tmpl.cardBg + " " + tmpl.cardBorder} p-3`}>
+                                          <div className="flex items-center justify-between mb-3"><h3 className={`text-sm font-bold ${isNeonTemplate || isDarkMode ? "text-white" : "text-foreground"}`}>Cart ({cartCount})</h3><button onClick={() => setCartItems({})} className="text-xs text-red-500 font-medium">Clear All</button></div>
+                                          <div className="space-y-2 mb-3">
+                                            {Object.entries(cartItems).map(([id, qty]) => {
+                                              const item = allMenuItems.find(i => i.id === Number(id));
+                                              if (!item) return null;
+                                              return (
+                                                <div key={id} className={`flex gap-2 items-center p-2 ${tmpl.cardRadius} ${isNeonTemplate || isDarkMode ? "bg-white/5" : "bg-background"}`}>
+                                                  <div className={`w-12 h-12 ${tmpl.cardImageRadius} overflow-hidden flex-shrink-0`}><img src={item.image} alt={item.name} className="w-full h-full object-cover" /></div>
+                                                  <div className="flex-1 min-w-0"><h4 className={`text-xs font-bold ${isNeonTemplate || isDarkMode ? "text-white" : "text-foreground"}`}>{item.name}</h4><p className="text-[10px]" style={{ color: effectiveAccent }}>{item.price} EGP × {qty}</p></div>
+                                                  <div className="flex items-center gap-1">
+                                                    <button onClick={() => removeFromCart(item.id)} className="w-6 h-6 flex items-center justify-center rounded-full border" style={{ borderColor: effectiveAccent + "50", color: effectiveAccent }}><Minus className="w-3 h-3" /></button>
+                                                    <span className={`text-xs font-bold w-5 text-center ${isNeonTemplate || isDarkMode ? "text-white" : "text-slate-700"}`}>{qty}</span>
+                                                    <button onClick={() => addToCart(item.id)} className="w-6 h-6 flex items-center justify-center rounded-full text-white" style={{ background: effectiveAccent }}><Plus className="w-3 h-3" /></button>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                          <div className={`border-t pt-3 space-y-2 ${isNeonTemplate || isDarkMode ? "border-slate-700" : "border-slate-200"}`}>
+                                            <div className="flex justify-between text-xs"><span className={isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-500"}>Subtotal</span><span className={`font-bold ${isNeonTemplate || isDarkMode ? "text-white" : "text-foreground"}`}>{cartTotal.toFixed(0)} EGP</span></div>
+                                            <div className="flex justify-between text-xs"><span className={isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-500"}>Delivery</span><span className={isNeonTemplate || isDarkMode ? "text-green-400" : "text-green-600"}>Free</span></div>
+                                            <div className={`flex justify-between text-sm font-bold pt-2 border-t ${isNeonTemplate || isDarkMode ? "border-slate-700 text-white" : "border-slate-200 text-foreground"}`}><span>Total</span><span style={{ color: effectiveAccent }}>{cartTotal.toFixed(0)} EGP</span></div>
+                                            <button className={`w-full py-3 ${tmpl.btnRadius} font-bold text-sm text-white mt-2`} style={{ background: effectiveGradient }}>Checkout →</button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col items-center justify-center py-8 text-center">
+                                          <ShoppingCart className={`w-16 h-16 mb-3 ${isNeonTemplate || isDarkMode ? "text-muted-foreground" : "text-slate-300"}`} />
+                                          <p className={`text-sm mb-2 ${isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Your cart is empty</p>
+                                          <button onClick={() => setCurrentPage("menu")} className={`text-xs px-4 py-2 ${tmpl.btnRadius}`} style={{ color: effectiveAccent, border: `1px solid ${effectiveAccent}30`, background: effectiveAccent + "08" }}>Browse Menu</button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* =========== PROFILE PAGE =========== */}
+                                  {currentPage === "profile" && (
+                                    <div className="space-y-3">
+                                      <div className={`relative ${tmpl.cardRadius} overflow-hidden p-4 text-white`} style={{ background: effectiveGradient }}>
+                                        <div className="absolute inset-0 bg-black/10" />
+                                        <div className="relative z-10 flex flex-col items-center text-center"><div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm mb-2 flex items-center justify-center"><User className="w-8 h-8" /></div><h3 className="text-base font-bold mb-0.5">{displayName}</h3><p className="text-xs opacity-80">{bio || "Member since 2024"}</p></div>
+                                      </div>
+                                      <div className="grid grid-cols-3 gap-2">{[{ v: cartCount, l: "Orders", icon: "📦" }, { v: rating.toFixed(1), l: "Rating", icon: "⭐" }, { v: favorites.length, l: "Saved", icon: "❤️" }].map(({ v, l, icon }) => (<div key={l} className={`${tmpl.cardRadius} ${statsCardClass} ${isDarkMode || isNeonTemplate ? tmpl.cardBgDark + " " + tmpl.cardBorderDark : tmpl.cardBg + " " + tmpl.cardBorder} p-2 text-center`}><span className="text-sm">{icon}</span><div className="text-lg font-bold" style={{ color: effectiveAccent }}>{v}</div><div className={`text-[10px] ${isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{l}</div></div>))}</div>
+                                      {/* Achievements */}
+                                      <div className={`${tmpl.cardRadius} ${isDarkMode || isNeonTemplate ? tmpl.cardBgDark + " " + tmpl.cardBorderDark : tmpl.cardBg + " " + tmpl.cardBorder} p-3`}>
+                                        <h4 className={`text-xs font-bold mb-2 flex items-center gap-1.5 ${isNeonTemplate || isDarkMode ? "text-white" : "text-foreground"}`}><Award size={14} style={{ color: effectiveAccent }} />Achievements</h4>
+                                        <div className="flex gap-2">{[{ emoji: "🏆", label: "First Order" }, { emoji: "⭐", label: "5 Reviews" }, { emoji: "🔥", label: "Loyal Fan" }].map(a => (<div key={a.label} className={`flex-1 text-center p-2 ${tmpl.cardRadius} ${isNeonTemplate || isDarkMode ? "bg-white/5" : "bg-background"}`}><div className="text-lg mb-0.5">{a.emoji}</div><div className={`text-[9px] ${isNeonTemplate || isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{a.label}</div></div>))}</div>
+                                      </div>
+                                      <div className="space-y-1">{[{ icon: Bookmark, label: `Favorites (${favorites.length})` }, { icon: ShoppingCart, label: "Order History" }, { icon: MapPin, label: "Saved Addresses" }, { icon: Bell, label: "Notifications" }].map(({ icon: Icon, label }) => (<div key={label} className={`${tmpl.cardRadius} ${isDarkMode || isNeonTemplate ? tmpl.cardBgDark + " " + tmpl.cardBorderDark : tmpl.cardBg + " " + tmpl.cardBorder} p-3 flex items-center justify-between cursor-pointer`}><div className="flex items-center gap-2"><Icon className="w-4 h-4" style={{ color: effectiveAccent }} /><span className={`text-xs font-medium ${isNeonTemplate || isDarkMode ? "text-white" : "text-foreground"}`}>{label}</span></div><ArrowRight className={`w-4 h-4 ${isNeonTemplate || isDarkMode ? "text-muted-foreground" : "text-slate-400"}`} /></div>))}</div>
+                                    </div>
+                                  )}
+                                </motion.div>
+                              </AnimatePresence>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center h-full text-center p-8"><Smartphone className="w-16 h-16 text-slate-300 mb-4" /><p className="text-slate-400 text-sm">Enter a business name to see the preview</p></div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* ===== APP NAVIGATION ===== */}
+                        {isPreviewVisible && activeNavPlacement !== "side" && (
+                          <AppNavigation
+                            currentPage={currentPage}
+                            cartCount={cartCount}
+                            onNavigate={navigatePage}
+                            styleVariant={activeNavStyle}
+                            placement={activeNavPlacement}
+                            effectiveAccent={effectiveAccent}
+                            effectiveGradient={effectiveGradient}
+                            isDarkLike={isNeonTemplate || isDarkMode}
+                          />
+                        )}
+                      </div>
+                      <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none" />
+                    </motion.div>
+                  </motion.div>
+                </div>
+                <div className="xl:hidden mt-4 space-y-2">
+                  {isPreviewVisible && (
+                    <div className="mx-auto w-full max-w-[300px] rounded-2xl border border-white/10 bg-slate-900/70 p-1.5 backdrop-blur">
+                      <div className="grid grid-cols-4 gap-1">
+                        {[
+                          { id: "home" as const, label: t("الرئيسية", "Home") },
+                          { id: "menu" as const, label: t("القائمة", "Menu") },
+                          { id: "cart" as const, label: t("السلة", "Cart") },
+                          { id: "profile" as const, label: t("الملف", "Profile") },
+                        ].map((page) => (
+                          <button
+                            key={page.id}
+                            onClick={() => navigatePage(page.id)}
+                            className={`rounded-xl py-2 text-[11px] font-semibold transition-all ${currentPage === page.id ? "text-white" : "text-slate-300 hover:text-white"}`}
+                            style={currentPage === page.id ? { background: effectiveGradient } : { background: "rgba(255,255,255,0.04)" }}
+                          >
+                            {page.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mx-auto w-full max-w-[300px] rounded-2xl border border-white/10 bg-slate-900/60 p-1.5 backdrop-blur">
+                    <div className="grid grid-cols-3 gap-1">
+                      {([
+                        { id: "mobile", label: t("موبايل", "Mobile") },
+                        { id: "tablet", label: t("تابلت", "Tablet") },
+                        { id: "desktop", label: t("ديسكتوب", "Desktop") },
+                      ] as const).map((device) => (
+                        <button
+                          key={device.id}
+                          onClick={() => setDeviceView(device.id)}
+                          className={`rounded-xl py-2 text-[11px] font-semibold transition-all ${deviceView === device.id ? "text-white" : "text-slate-300 hover:text-white"}`}
+                          style={deviceView === device.id ? { background: effectiveGradient } : { background: "rgba(255,255,255,0.04)" }}
+                        >
+                          {device.label}
                         </button>
                       ))}
                     </div>
                   </div>
+                </div>
+                <div className="text-center mt-4 hidden xl:block"><span className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">{deviceView} Preview — {tmpl.name} Template</span></div>
 
-                  {/* Add Custom Items */}
-                  <div className="pt-3 border-t border-border">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5">
-                        <Plus className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-semibold text-foreground">إضافة {currentServiceType.itemLabel}</span>
-                      </div>
-                      <button
-                        onClick={() => setShowAddItemForm(!showAddItemForm)}
-                        className="p-1 rounded hover:bg-secondary transition-colors"
+                {/* Cool Animated Scroll Hint — visible on all devices, permanent */}
+                {deviceView === "mobile" && (
+                  <div className="absolute top-[60%] xl:top-1/2 left-[-15px] xl:-left-[170px] z-[250] pointer-events-none select-none">
+                    <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
+                      <motion.div
+                        animate={{ y: [-4, 4, -4] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                        className="flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-cyan-500/40 shadow-[0_0_30px_-5px_rgba(34,211,238,0.5)] relative"
                       >
-                        {showAddItemForm ? (
-                          <ChevronUp className="w-3 h-3" />
-                        ) : (
-                          <ChevronDown className="w-3 h-3" />
-                        )}
-                      </button>
-                    </div>
-
-                    {showAddItemForm && (
-                      <div className="space-y-2 animate-fade-in">
-                        <input
-                          type="text"
-                          placeholder={`اسم ${currentServiceType.itemLabel}`}
-                          value={newItem.name}
-                          onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                          className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary"
-                        />
-                        <textarea
-                          placeholder="المواصفات / الوصف"
-                          value={newItem.description}
-                          onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                          className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary min-h-[60px] resize-none"
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            placeholder="السعر (EGP)"
-                            value={newItem.price}
-                            onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
-                            className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary"
-                          />
-                          <select
-                            value={newItem.category}
-                            onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                            className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary"
-                          >
-                            {currentServiceType.categories.filter(cat => cat.id !== "all").map((cat) => (
-                              <option key={cat.id} value={cat.id}>
-                                {cat.name}
-                              </option>
-                            ))}
-                          </select>
+                        <div className="absolute inset-0 rounded-2xl bg-cyan-400/10 blur-xl"></div>
+                        <div className="relative z-10 w-4 h-6 sm:w-5 sm:h-8 rounded-full border-[1.5px] border-cyan-400 flex justify-center pt-1 sm:pt-1.5 flex-shrink-0">
+                          <motion.div animate={{ y: [0, 8, 0], opacity: [1, 0, 1] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} className="w-[3px] h-[6px] sm:w-[4px] sm:h-[8px] bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,1)]" />
                         </div>
-                        {/* Image Upload - Drag & Drop */}
-                        <div
-                          onDrop={(e) => handleDrop(e)}
-                          onDragOver={handleDragOver}
-                          onDragLeave={() => setIsDragging(false)}
-                          className={`border-2 border-dashed rounded-lg p-3 text-center transition-colors ${isDragging ? "border-primary bg-primary/5" : "border-border"}`}
-                        >
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
-                            className="hidden"
-                            id="image-upload"
-                          />
-                          <label htmlFor="image-upload" className="cursor-pointer">
-                            <ImageIcon className="w-6 h-6 mx-auto mb-1 text-muted-foreground" />
-                            <p className="text-[10px] text-muted-foreground mb-1">
-                              {newItem.image ? "تم رفع الصورة" : "اسحب الصورة هنا أو اضغط للرفع"}
-                            </p>
-                            {newItem.image && (
-                              <img src={newItem.image} alt="Preview" className="w-full h-20 object-cover rounded mt-2" />
+                        <div className="relative z-10 flex flex-col items-start" dir="rtl">
+                          <span className="text-[11px] sm:text-[13px] font-bold text-cyan-50 whitespace-nowrap drop-shadow-md leading-tight">
+                            {t("جرّب تعمل سكرول", "Try scrolling")}
+                          </span>
+                          <span className="text-[9px] sm:text-[10px] text-cyan-300/80 font-medium whitespace-nowrap mt-0.5">
+                            {t("للتصفح داخل الموبايل", "inside to explore")}
+                          </span>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* ========== RIGHT: QR & ACTIONS ========== */}
+            {isPreviewVisible && (
+              <motion.div className={`hidden xl:block xl:w-[280px] flex-shrink-0 order-3 ${studioLocked ? "pointer-events-none select-none opacity-70" : ""}`} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+                <div className="xl:sticky xl:top-24 space-y-4">
+
+                  {/* ── SAVE STATUS CARD ── */}
+                  <div className="bg-gradient-to-br from-primary/[0.08] via-cyan-50/60 to-violet-50/40 backdrop-blur-xl rounded-2xl border border-primary/20 p-5 relative overflow-hidden shadow-lg shadow-primary/[0.06]">
+                    <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-primary/15 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/[0.08] rounded-full blur-[50px]" />
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-lg ${isAuthenticated ? 'bg-gradient-to-br from-primary to-cyan-500 shadow-primary/30' : 'bg-gradient-to-br from-slate-400 to-background0 shadow-slate-400/30'}`}>
+                          {isSaving ? <Loader2 size={14} className="text-white animate-spin" /> : isAuthenticated ? <Cloud size={14} className="text-white" /> : <CloudOff size={14} className="text-white" />}
+                        </div>
+                        <div>
+                          <span className="text-sm font-bold text-foreground block leading-tight">
+                            {isAuthenticated ? 'Auto-Save' : 'Save Design'}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground">
+                            {isAuthenticated
+                              ? (isSaving ? 'Saving changes...' : lastSavedAt ? `Saved ${lastSavedAt.toLocaleTimeString()}` : 'Will save automatically')
+                              : 'Login to enable auto-save'
+                            }
+                          </span>
+                        </div>
+                      </div>
+
+                      {isAuthenticated ? (
+                        <div className="space-y-2">
+                          {/* Save status indicator */}
+                          <div className={`flex items-center gap-2 p-2.5 rounded-xl border ${lastSavedAt ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-primary/5 border-primary/10'}`}>
+                            {lastSavedAt ? (
+                              <>
+                                <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <span className="text-[10px] font-bold text-emerald-600 block">All changes saved</span>
+                                  <span className="text-[9px] text-emerald-500/70 block">Synced to your account</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <Cloud size={14} className="text-primary/60 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <span className="text-[10px] font-bold text-slate-500 block">Ready to save</span>
+                                  <span className="text-[9px] text-slate-400 block">Changes auto-save in 2s</span>
+                                </div>
+                              </>
                             )}
-                          </label>
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="أو أدخل رابط الصورة"
-                          value={newItem.image}
-                          onChange={(e) => setNewItem({ ...newItem, image: e.target.value })}
-                          className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary"
-                        />
-                        <button
-                          onClick={handleAddItem}
-                          disabled={!newItem.name || !newItem.price || !newItem.category}
-                          className="w-full py-1.5 px-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                        >
-                          <Plus className="w-3 h-3" />
-                          إضافة {currentServiceType.itemLabel}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Custom Items List with Bulk Edit */}
-                    {customItems.length > 0 && (
-                      <div className="mt-3 space-y-1.5">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-semibold text-muted-foreground">{currentServiceType.itemLabel} المضافة ({customItems.length}):</span>
-                          {selectedItemsForBulkEdit.length > 0 && (
-                            <button
-                              onClick={() => setShowBulkEdit(true)}
-                              className="text-[10px] text-primary hover:underline"
-                            >
-                              تعديل {selectedItemsForBulkEdit.length} عنصر
-                            </button>
-                          )}
-                        </div>
-                        {customItems.map((item) => (
-                          <div
-                            key={item.id}
-                            draggable
-                            onDragStart={() => handleDragStart(item.id)}
-                            onDragOver={(e) => handleDragOverItem(e, item.id)}
-                            onDragEnd={handleDragEnd}
-                            className={`flex items-center gap-2 p-2 bg-secondary/50 rounded-lg transition-all ${draggedItem === item.id ? "opacity-50" : ""} ${selectedItemsForBulkEdit.includes(item.id) ? "ring-2 ring-primary" : ""}`}
-                          >
-                            <GripVertical className="w-3 h-3 text-muted-foreground cursor-move" />
-                            <input
-                              type="checkbox"
-                              checked={selectedItemsForBulkEdit.includes(item.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedItemsForBulkEdit(prev => [...prev, item.id]);
-                                } else {
-                                  setSelectedItemsForBulkEdit(prev => prev.filter(id => id !== item.id));
-                                }
-                              }}
-                              className="w-3 h-3"
-                            />
-                            <span className="text-xs text-foreground truncate flex-1">{item.name}</span>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => duplicateItem(item)}
-                                className="p-1 hover:bg-primary/20 rounded transition-colors"
-                                title="نسخ"
-                              >
-                                <Copy className="w-3 h-3 text-primary" />
-                              </button>
-                              <button
-                                onClick={() => handleRemoveItem(item.id)}
-                                className="p-1 hover:bg-destructive/20 rounded transition-colors"
-                              >
-                                <X className="w-3 h-3 text-destructive" />
-                              </button>
-                            </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Bulk Edit Modal */}
-                    {showBulkEdit && (
-                      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-                        <div className="bg-card rounded-xl p-4 max-w-md w-full max-h-[80vh] overflow-y-auto">
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-sm">تعديل {selectedItemsForBulkEdit.length} عنصر</h3>
-                            <button
-                              onClick={() => {
-                                setShowBulkEdit(false);
-                                setSelectedItemsForBulkEdit([]);
-                              }}
-                              className="p-1 hover:bg-secondary rounded"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="space-y-3">
-                            <div>
-                              <label className="text-xs font-semibold mb-1 block">تغيير الفئة</label>
-                              <select
-                                onChange={(e) => handleBulkEdit("category", e.target.value)}
-                                className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg"
-                              >
-                                <option value="">اختر فئة</option>
-                                {currentServiceType.categories.filter(cat => cat.id !== "all").map(cat => (
-                                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-xs font-semibold mb-1 block">تغيير حالة المميز</label>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => handleBulkEdit("featured", true)}
-                                  className="flex-1 py-1.5 px-2 bg-primary text-white rounded-lg text-xs font-semibold"
-                                >
-                                  جعلها مميزة
-                                </button>
-                                <button
-                                  onClick={() => handleBulkEdit("featured", false)}
-                                  className="flex-1 py-1.5 px-2 bg-secondary text-foreground rounded-lg text-xs font-semibold"
-                                >
-                                  إلغاء التمييز
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Statistics Panel */}
-            {isPreviewVisible && (
-              <div className="glass-card p-2.5 sm:p-3 rounded-xl glow-border-hover">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                    <span className="font-semibold text-xs sm:text-sm">الإحصائيات</span>
-                  </div>
-                  <button
-                    onClick={() => setShowStats(!showStats)}
-                    className="p-1 rounded hover:bg-secondary transition-colors"
-                  >
-                    {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                </div>
-                {showStats && (
-                  <div className="space-y-2 animate-fade-in border-t border-border pt-2">
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-secondary/50 p-2 rounded-lg">
-                        <div className="text-muted-foreground mb-0.5">عدد العناصر</div>
-                        <div className="font-bold text-foreground text-lg">{stats.totalItems}</div>
-                      </div>
-                      <div className="bg-secondary/50 p-2 rounded-lg">
-                        <div className="text-muted-foreground mb-0.5">إجمالي القيمة</div>
-                        <div className="font-bold text-foreground text-lg">{stats.totalValue.toFixed(0)} EGP</div>
-                      </div>
-                      <div className="bg-secondary/50 p-2 rounded-lg">
-                        <div className="text-muted-foreground mb-0.5">متوسط السعر</div>
-                        <div className="font-bold text-foreground text-lg">{stats.averagePrice.toFixed(0)} EGP</div>
-                      </div>
-                      <div className="bg-secondary/50 p-2 rounded-lg">
-                        <div className="text-muted-foreground mb-0.5">مميز</div>
-                        <div className="font-bold text-foreground text-lg">{stats.featuredCount}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Advanced Options */}
-            {isPreviewVisible && (
-              <div className="glass-card p-2.5 sm:p-3 rounded-xl">
-                <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                    <span className="font-semibold text-xs sm:text-sm">خيارات متقدمة</span>
-                  </div>
-                  <button
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
-                  >
-                    {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                </div>
-
-                {showAdvanced && (
-                  <div className="space-y-2.5 animate-fade-in border-t border-border pt-3 max-h-[50vh] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
-                    {/* Search */}
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Search className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-semibold text-foreground">بحث</span>
-                      </div>
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="ابحث عن عنصر..."
-                        className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary"
-                      />
-                    </div>
-
-                    {/* Sort */}
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <SortAsc className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-semibold text-foreground">ترتيب</span>
-                      </div>
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as "name" | "price" | "rating")}
-                        className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary"
-                      >
-                        <option value="name">حسب الاسم</option>
-                        <option value="price">حسب السعر</option>
-                        <option value="rating">حسب التقييم</option>
-                      </select>
-                    </div>
-
-                    {/* Device View */}
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Monitor className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-semibold text-foreground">نوع العرض</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[
-                          { id: "mobile", icon: Smartphone, label: "موبايل" },
-                          { id: "tablet", icon: Tablet, label: "تابلت" },
-                          { id: "desktop", icon: Monitor, label: "ديسكتوب" },
-                        ].map((device) => (
+                          {/* Manual save button */}
                           <button
-                            key={device.id}
-                            onClick={() => setDeviceView(device.id as "mobile" | "tablet" | "desktop")}
-                            className={`p-2 rounded-lg border-2 transition-all ${deviceView === device.id
-                              ? "border-primary ring-1 ring-primary/30"
-                              : "border-border hover:border-primary/50"
-                              }`}
+                            onClick={handleManualSave}
+                            disabled={isSaving}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary/10 border border-primary/20 text-primary rounded-xl text-xs font-bold hover:bg-primary/20 transition-all disabled:opacity-50"
                           >
-                            <device.icon className={`w-4 h-4 mx-auto mb-1 ${deviceView === device.id ? "text-primary" : "text-muted-foreground"}`} />
-                            <div className="text-[10px] font-medium text-foreground text-center">{device.label}</div>
+                            {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                            {isSaving ? "Saving..." : "Save Now"}
                           </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Font Size */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-foreground">حجم الخط</span>
-                        <span className="text-xs text-muted-foreground">{Math.round(fontSize * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.8"
-                        max="1.5"
-                        step="0.1"
-                        value={fontSize}
-                        onChange={(e) => setFontSize(parseFloat(e.target.value))}
-                        className="w-full"
-                      />
-                    </div>
-
-                    {/* Display Options */}
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Eye className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-semibold text-foreground">خيارات العرض</span>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={showRatings}
-                            onChange={(e) => setShowRatings(e.target.checked)}
-                            className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/30"
-                          />
-                          <span>إظهار التقييمات</span>
-                        </label>
-                        <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={showTime}
-                            onChange={(e) => setShowTime(e.target.checked)}
-                            className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/30"
-                          />
-                          <span>إظهار الوقت</span>
-                        </label>
-                        <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={showFeatured}
-                            onChange={(e) => setShowFeatured(e.target.checked)}
-                            className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/30"
-                          />
-                          <span>إظهار المميز</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Image Quality */}
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <ImageIcon className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-semibold text-foreground">جودة الصور</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <button
-                          onClick={() => setImageQuality("standard")}
-                          className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${imageQuality === "standard"
-                            ? "bg-primary text-white"
-                            : "bg-secondary text-foreground hover:bg-secondary/80"
-                            }`}
-                        >
-                          عادي
-                        </button>
-                        <button
-                          onClick={() => setImageQuality("hd")}
-                          className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${imageQuality === "hd"
-                            ? "bg-primary text-white"
-                            : "bg-secondary text-foreground hover:bg-secondary/80"
-                            }`}
-                        >
-                          عالي
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Export/Import */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
-                      <button
-                        onClick={exportData}
-                        className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-semibold hover:bg-primary/20 transition-colors"
-                      >
-                        <Download className="w-3 h-3" />
-                        تصدير JSON
-                      </button>
-                      <label className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-secondary text-foreground rounded-lg text-xs font-semibold hover:bg-secondary/80 transition-colors cursor-pointer">
-                        <Upload className="w-3 h-3" />
-                        استيراد JSON
-                        <input
-                          type="file"
-                          accept=".json"
-                          onChange={importData}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-
-                    {/* CSV Export/Import */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
-                      <button
-                        onClick={exportToCSV}
-                        className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-semibold hover:bg-primary/20 transition-colors"
-                      >
-                        <FileSpreadsheet className="w-3 h-3" />
-                        تصدير CSV
-                      </button>
-                      <label className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-secondary text-foreground rounded-lg text-xs font-semibold hover:bg-secondary/80 transition-colors cursor-pointer">
-                        <FileSpreadsheet className="w-3 h-3" />
-                        استيراد CSV
-                        <input
-                          type="file"
-                          accept=".csv"
-                          onChange={(e) => e.target.files?.[0] && importFromCSV(e.target.files[0])}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-
-                    {/* Custom Color Picker */}
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <Palette className="w-3.5 h-3.5 text-primary" />
-                          <span className="text-xs font-semibold text-foreground">ألوان مخصصة</span>
-                        </div>
-                        <button
-                          onClick={() => setShowColorPicker(!showColorPicker)}
-                          className="p-1 rounded hover:bg-secondary transition-colors"
-                        >
-                          {showColorPicker ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                        </button>
-                      </div>
-                      {showColorPicker && (
-                        <div className="space-y-2 animate-fade-in">
-                          <div>
-                            <label className="text-[10px] text-muted-foreground mb-1 block">اللون الأساسي</label>
-                            <div className="flex gap-2">
-                              <input
-                                type="color"
-                                value={customTheme.primary}
-                                onChange={(e) => updateCustomTheme("primary", e.target.value)}
-                                className="w-12 h-8 rounded border border-border cursor-pointer"
-                              />
-                              <input
-                                type="text"
-                                value={customTheme.primary}
-                                onChange={(e) => updateCustomTheme("primary", e.target.value)}
-                                className="flex-1 px-2 py-1 text-xs bg-input border border-border rounded-lg"
-                                placeholder="#00bcd4"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-muted-foreground mb-1 block">لون التمييز</label>
-                            <div className="flex gap-2">
-                              <input
-                                type="color"
-                                value={customTheme.accent}
-                                onChange={(e) => updateCustomTheme("accent", e.target.value)}
-                                className="w-12 h-8 rounded border border-border cursor-pointer"
-                              />
-                              <input
-                                type="text"
-                                value={customTheme.accent}
-                                onChange={(e) => updateCustomTheme("accent", e.target.value)}
-                                className="flex-1 px-2 py-1 text-xs bg-input border border-border rounded-lg"
-                                placeholder="#00acc1"
-                              />
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              setSelectedTheme("custom");
-                              toast.success("تم تطبيق الألوان المخصصة");
-                            }}
-                            className="w-full py-1.5 px-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors"
-                          >
-                            تطبيق الألوان
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Custom Fonts */}
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Type className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-semibold text-foreground">الخطوط</span>
-                      </div>
-                      <select
-                        value={selectedFont}
-                        onChange={(e) => setSelectedFont(e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30"
-                      >
-                        <option value="Poppins">Poppins</option>
-                        <option value="Cairo">Cairo</option>
-                        <option value="Tajawal">Tajawal</option>
-                        <option value="Almarai">Almarai</option>
-                        <option value="Arial">Arial</option>
-                        <option value="Helvetica">Helvetica</option>
-                      </select>
-                      <div className="mt-2">
-                        <label className="text-[10px] text-muted-foreground mb-1 block">سمك الخط: {fontWeight}</label>
-                        <input
-                          type="range"
-                          min="300"
-                          max="800"
-                          step="100"
-                          value={fontWeight}
-                          onChange={(e) => setFontWeight(parseInt(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Animation Settings */}
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <Play className="w-3.5 h-3.5 text-primary" />
-                          <span className="text-xs font-semibold text-foreground">الحركات</span>
-                        </div>
-                        <button
-                          onClick={() => setEnableAnimations(!enableAnimations)}
-                          className={`relative w-10 h-5 rounded-full transition-colors ${enableAnimations ? "bg-primary" : "bg-gray-300"}`}
-                        >
-                          <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${enableAnimations ? "translate-x-5" : ""}`} />
-                        </button>
-                      </div>
-                      {enableAnimations && (
-                        <div className="mt-2">
-                          <label className="text-[10px] text-muted-foreground mb-1 block">سرعة الحركة</label>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            {(["slow", "normal", "fast"] as const).map((speed) => (
-                              <button
-                                key={speed}
-                                onClick={() => setAnimationSpeed(speed)}
-                                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${animationSpeed === speed
-                                  ? "bg-primary text-white"
-                                  : "bg-secondary text-foreground hover:bg-secondary/80"
-                                  }`}
-                              >
-                                {speed === "slow" ? "بطيء" : speed === "normal" ? "عادي" : "سريع"}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Performance Metrics */}
-                    {performanceMetrics && (
-                      <div className="pt-2 border-t border-border">
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <Gauge className="w-3.5 h-3.5 text-primary" />
-                          <span className="text-xs font-semibold text-foreground">الأداء</span>
-                        </div>
-                        <div className="space-y-1.5 text-[10px]">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">حجم الصفحة:</span>
-                            <span className="font-semibold">{performanceMetrics.pageSize.toFixed(0)} KB</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">وقت التحميل:</span>
-                            <span className="font-semibold">{performanceMetrics.loadTime.toFixed(1)}s</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">حجم الحزمة:</span>
-                            <span className="font-semibold">{performanceMetrics.bundleSize.toFixed(0)} KB</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">إمكانية الوصول:</span>
-                            <span className="font-semibold">{performanceMetrics.accessibilityScore}/100</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Templates */}
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5 text-primary" />
-                          <span className="text-xs font-semibold text-foreground">القوالب</span>
-                        </div>
-                        <button
-                          onClick={() => setShowTemplates(!showTemplates)}
-                          className="p-1 rounded hover:bg-secondary transition-colors"
-                        >
-                          {showTemplates ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                        </button>
-                      </div>
-                      {showTemplates && (
-                        <div className="space-y-2 animate-fade-in">
-                          <button
-                            onClick={saveAsTemplate}
-                            className="w-full py-1.5 px-2 bg-primary/10 text-primary rounded-lg text-xs font-semibold hover:bg-primary/20 transition-colors flex items-center justify-center gap-1.5"
-                          >
-                            <Save className="w-3 h-3" />
-                            حفظ كقالب
-                          </button>
-                          {templates.length > 0 && (
-                            <div className="space-y-1 max-h-32 overflow-y-auto">
-                              {templates.map((template) => (
-                                <button
-                                  key={template.id}
-                                  onClick={() => loadTemplate(template)}
-                                  className="w-full p-2 bg-secondary/50 rounded-lg text-xs text-left hover:bg-secondary transition-colors"
-                                >
-                                  <div className="font-semibold">{template.name}</div>
-                                  <div className="text-[10px] text-muted-foreground">{template.items.length} عنصر</div>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Version History */}
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <History className="w-3.5 h-3.5 text-primary" />
-                          <span className="text-xs font-semibold text-foreground">الإصدارات</span>
-                        </div>
-                        <button
-                          onClick={() => setShowVersions(!showVersions)}
-                          className="p-1 rounded hover:bg-secondary transition-colors"
-                        >
-                          {showVersions ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                        </button>
-                      </div>
-                      {showVersions && (
-                        <div className="space-y-2 animate-fade-in">
-                          <button
-                            onClick={saveVersion}
-                            className="w-full py-1.5 px-2 bg-primary/10 text-primary rounded-lg text-xs font-semibold hover:bg-primary/20 transition-colors flex items-center justify-center gap-1.5"
-                          >
-                            <Save className="w-3 h-3" />
-                            حفظ إصدار جديد
-                          </button>
-                          {versions.length > 0 && (
-                            <div className="space-y-1 max-h-32 overflow-y-auto">
-                              {versions.map((version) => (
-                                <button
-                                  key={version.id}
-                                  onClick={() => loadVersion(version)}
-                                  className={`w-full p-2 rounded-lg text-xs text-left transition-colors ${currentVersion === version.id
-                                    ? "bg-primary/20 border border-primary"
-                                    : "bg-secondary/50 hover:bg-secondary"
-                                    }`}
-                                >
-                                  <div className="font-semibold">{version.name}</div>
-                                  <div className="text-[10px] text-muted-foreground">
-                                    {version.timestamp.toLocaleString("ar-EG")}
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Keyboard Shortcuts */}
-                    <div className="pt-2 border-t border-border">
-                      <button
-                        onClick={() => setShowKeyboardShortcuts(!showKeyboardShortcuts)}
-                        className="w-full flex items-center justify-between p-2 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Keyboard className="w-3.5 h-3.5 text-primary" />
-                          <span className="text-xs font-semibold text-foreground">اختصارات لوحة المفاتيح</span>
-                        </div>
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
-                      {showKeyboardShortcuts && (
-                        <div className="mt-2 p-2 bg-secondary/30 rounded-lg space-y-1.5 text-[10px] animate-fade-in">
-                          <div className="flex justify-between">
-                            <span>Ctrl+S</span>
-                            <span className="text-muted-foreground">حفظ إصدار</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Ctrl+E</span>
-                            <span className="text-muted-foreground">تصدير CSV</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Ctrl+I</span>
-                            <span className="text-muted-foreground">إضافة عنصر</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Ctrl+K</span>
-                            <span className="text-muted-foreground">إظهار الاختصارات</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Print Preview */}
-                    <div className="pt-2 border-t border-border">
-                      <button
-                        onClick={() => {
-                          setShowPrintPreview(true);
-                          setTimeout(() => window.print(), 100);
-                        }}
-                        className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-semibold hover:bg-primary/20 transition-colors"
-                      >
-                        <Printer className="w-3 h-3" />
-                        طباعة المنيو
-                      </button>
-                    </div>
-
-                    {/* SEO Preview */}
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <Globe className="w-3.5 h-3.5 text-primary" />
-                          <span className="text-xs font-semibold text-foreground">SEO</span>
-                        </div>
-                        <button
-                          onClick={() => setShowSeo(!showSeo)}
-                          className="p-1 rounded hover:bg-secondary transition-colors"
-                        >
-                          {showSeo ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                        </button>
-                      </div>
-                      {showSeo && (
-                        <div className="space-y-2 animate-fade-in">
-                          <input
-                            type="text"
-                            placeholder="عنوان الصفحة"
-                            value={seoData.title}
-                            onChange={(e) => setSeoData({ ...seoData, title: e.target.value })}
-                            className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg"
-                          />
-                          <textarea
-                            placeholder="وصف الصفحة"
-                            value={seoData.description}
-                            onChange={(e) => setSeoData({ ...seoData, description: e.target.value })}
-                            className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg min-h-[60px] resize-none"
-                          />
-                          <input
-                            type="text"
-                            placeholder="الكلمات المفتاحية"
-                            value={seoData.keywords}
-                            onChange={(e) => setSeoData({ ...seoData, keywords: e.target.value })}
-                            className="w-full px-2 py-1.5 text-xs bg-input border border-border rounded-lg"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            {isPreviewVisible && (
-              <div className="space-y-1.5 sm:space-y-2">
-                <button
-                  onClick={downloadPreview}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 sm:py-2.5 bg-primary text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  تحميل المعاينة
-                </button>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    onClick={copyShareLink}
-                    className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-secondary text-foreground rounded-lg text-[10px] sm:text-xs font-semibold hover:bg-secondary/80 transition-colors"
-                  >
-                    {copied ? <Check className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
-                    {copied ? "تم!" : "مشاركة"}
-                  </button>
-                  <a
-                    href={generateQRCode()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-secondary text-foreground rounded-lg text-[10px] sm:text-xs font-semibold hover:bg-secondary/80 transition-colors"
-                  >
-                    <QrCode className="w-3 h-3" />
-                    QR Code
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* CTA Button */}
-            <button
-              onClick={() => {
-                const element = document.getElementById("contact");
-                if (element) {
-                  element.scrollIntoView({ behavior: "smooth" });
-                }
-              }}
-              className="w-full btn-glow glow-ring px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-xs sm:text-sm font-bold relative group"
-            >
-              <span className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2">
-                <span className="hidden sm:inline">اطلب المنيو الخاص بك الآن</span>
-                <span className="sm:hidden">اطلب الآن</span>
-                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </span>
-            </button>
-          </div>
-
-          {/* Right Side - Advanced Preview with Fixed Dimensions */}
-          <div className="lg:col-span-2 reveal order-1 lg:order-2" style={{ animationDelay: "0.2s" }}>
-            <div className="relative flex flex-col lg:flex-row items-center justify-center gap-4 sm:gap-6 lg:gap-8 -mx-4 sm:mx-0">
-              {/* Device Frame - Dynamic Dimensions */}
-              <div
-                className="relative transition-all duration-300 scale-[0.7] sm:scale-90 md:scale-100"
-                style={{
-                  width: deviceView === "mobile" ? "280px" : deviceView === "tablet" ? "600px" : "800px",
-                  height: deviceView === "mobile" ? "560px" : deviceView === "tablet" ? "800px" : "600px",
-                  maxWidth: "100%",
-                }}
-                ref={phoneRef}
-              >
-                {/* Glow Effect */}
-                <div
-                  className="absolute -inset-6 rounded-[2.5rem] blur-3xl animate-glow-pulse opacity-60"
-                  style={{ backgroundColor: currentTheme.accent + "20" }}
-                />
-
-                {/* Device Mockup - Dynamic Size */}
-                <div
-                  className={`relative mx-auto rounded-[1.5rem] sm:rounded-[2rem] border-4 sm:border-6 border-foreground/20 bg-gradient-to-b from-slate-900 to-slate-800 p-2 sm:p-2.5 shadow-2xl transition-all duration-500 ${isPreviewVisible
-                    ? "opacity-100 scale-100"
-                    : "opacity-30 scale-95"
-                    }`}
-                  style={{
-                    width: deviceView === "mobile" ? "280px" : deviceView === "tablet" ? "600px" : "800px",
-                    height: deviceView === "mobile" ? "560px" : deviceView === "tablet" ? "800px" : "600px",
-                    fontSize: `${fontSize * 0.9}rem`,
-                  }}
-                >
-                  {/* Phone Screen - Fixed Height */}
-                  <div
-                    className="rounded-[1.5rem] bg-white overflow-hidden shadow-xl flex flex-col"
-                    style={{ height: "100%" }}
-                  >
-                    {/* Header with Status Bar */}
-                    <div className="bg-slate-900 px-3 py-0.5 flex items-center justify-between text-white text-[10px] flex-shrink-0">
-                      <span>9:41</span>
-                      <div className="flex items-center gap-1">
-                        <div className="w-3 h-1.5 border border-white rounded-sm">
-                          <div className="w-2.5 h-1 bg-white rounded-sm m-0.5" />
-                        </div>
-                        <div className="w-0.5 h-0.5 bg-white rounded-full" />
-                      </div>
-                    </div>
-
-                    {/* App Header */}
-                    <div
-                      className={`px-4 py-3 flex items-center justify-between relative overflow-hidden flex-shrink-0 ${selectedTheme === "default" ? "bg-white border-b border-border" : ""
-                        }`}
-                      style={selectedTheme !== "default" ? {
-                        background: currentTheme.gradient,
-                      } : {}}
-                    >
-                      <div className="relative z-10 flex-1">
-                        <p className={`text-[10px] uppercase tracking-[0.2em] mb-0.5 ${getTextColorSecondary()}`}>
-                          Live Preview
-                        </p>
-                        <p className={`text-lg font-bold ${getTextColor()}`}>{displayName}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
-                          <span className={`text-[10px] ${getTextColor()}`}>4.8</span>
-                          <span className={`text-[10px] ${getTextColorSecondary()}`}>•</span>
-                          <span className={`text-[10px] ${getTextColorSecondary()}`}>مفتوح الآن</span>
-                        </div>
-                      </div>
-                      <div className="relative z-10 flex items-center gap-1.5">
-                        {currentPage === "menu" && (
-                          <button
-                            onClick={() => setShowSearch(!showSearch)}
-                            className={`p-1.5 rounded-lg ${showSearch ? "bg-white/20" : ""} transition-colors`}
-                          >
-                            <Search className={`w-4 h-4 ${getTextColor()}`} />
-                          </button>
-                        )}
-                        {currentPage === "home" && (
-                          <div className="relative">
-                            <button
-                              onClick={() => setNotifications(0)}
-                              className="p-1.5 rounded-lg transition-colors"
-                            >
-                              <Bell className={`w-4 h-4 ${getTextColor()}`} />
-                              {notifications > 0 && (
-                                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white">
-                                  {notifications}
-                                </span>
-                              )}
-                            </button>
-                          </div>
-                        )}
-                        <div className="relative">
-                          <ShoppingCart className={`w-5 h-5 ${getTextColor()}`} />
-                          {cartCount > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold animate-fade-in">
-                              {cartCount}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {selectedTheme !== "default" && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-                      )}
-                    </div>
-
-                    {/* Search Bar - Advanced */}
-                    {showSearch && currentPage === "menu" && (
-                      <div className="px-4 py-2 bg-white border-b border-border animate-fade-in">
-                        <div className="relative">
-                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                          <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="ابحث عن..."
-                            className="w-full pl-8 pr-8 py-1.5 text-xs bg-secondary rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/30"
-                          />
-                          {searchQuery && (
-                            <button
-                              onClick={() => setSearchQuery("")}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Menu Content - Scrollable with Fixed Container */}
-                    <div
-                      ref={scrollContainerRef}
-                      className="flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 to-white"
-                      style={{
-                        scrollbarWidth: 'thin',
-                        minHeight: 0,
-                        maxHeight: '100%'
-                      }}
-                    >
-                      {isPreviewVisible ? (
-                        <div className="p-3 space-y-3">
-                          {/* Home Page */}
-                          {currentPage === "home" && (
-                            <div className="space-y-3 animate-fade-in">
-                              {/* Hero Banner */}
-                              <div
-                                className={`relative rounded-xl overflow-hidden p-4 ${selectedTheme === "default" ? "bg-primary/10 border border-primary/20" : ""}`}
-                                style={selectedTheme !== "default" ? { background: currentTheme.gradient } : {}}
-                              >
-                                <div className={`${getTextColor()}`}>
-                                  <h3 className="text-lg font-bold mb-1">مرحباً بك في {displayName}</h3>
-                                  <p className="text-xs opacity-90">
-                                    {serviceType === "restaurant" ? "أطباق طازجة ولذيذة في انتظارك" :
-                                      serviceType === "cafe" ? "مشروبات ساخنة وباردة من أجود الأنواع" :
-                                        serviceType === "salon" ? "خدمات تجميل احترافية" :
-                                          serviceType === "pharmacy" ? "منتجات صحية وطبية" :
-                                            serviceType === "store" ? "منتجات متنوعة بأسعار منافسة" :
-                                              "خدماتنا المميزة"}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* Quick Stats */}
-                              <div className="grid grid-cols-3 gap-2">
-                                <div className="bg-white rounded-lg p-2 text-center border border-border">
-                                  <div className="text-lg font-bold text-primary">{stats.totalItems}</div>
-                                  <div className="text-[10px] text-muted-foreground">عنصر</div>
-                                </div>
-                                <div className="bg-white rounded-lg p-2 text-center border border-border">
-                                  <div className="text-lg font-bold text-primary">4.8</div>
-                                  <div className="text-[10px] text-muted-foreground">تقييم</div>
-                                </div>
-                                <div className="bg-white rounded-lg p-2 text-center border border-border">
-                                  <div className="text-lg font-bold text-primary">{stats.featuredCount}</div>
-                                  <div className="text-[10px] text-muted-foreground">مميز</div>
-                                </div>
-                              </div>
-
-                              {/* Featured Items Preview */}
-                              <div>
-                                <h4 className="text-sm font-bold text-foreground mb-2">الأكثر طلباً</h4>
-                                <div className="space-y-2">
-                                  {filteredItems.filter(item => item.featured).slice(0, 3).map((item) => (
-                                    <div key={item.id} className="bg-white rounded-lg p-2 flex gap-2 border border-border">
-                                      <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <h5 className="text-xs font-bold text-foreground">{item.name}</h5>
-                                        <p className="text-[10px] text-muted-foreground line-clamp-1">{item.description}</p>
-                                        <div className="flex items-center justify-between mt-1">
-                                          <span className="text-xs font-bold" style={{ color: currentTheme.accent }}>{item.price} EGP</span>
-                                          {item.rating && (
-                                            <div className="flex items-center gap-0.5">
-                                              <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
-                                              <span className="text-[10px]">{item.rating}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* CTA Button */}
-                              <button
-                                onClick={() => setCurrentPage("menu")}
-                                className={`w-full py-2.5 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 ${selectedTheme === "default" ? "text-primary border-2 border-primary bg-primary/10 hover:bg-primary/20" : "text-white"}`}
-                                style={selectedTheme !== "default" ? { background: currentTheme.gradient } : {}}
-                              >
-                                <span>تصفح {currentServiceType.itemLabel === "طبق" ? "القائمة" : currentServiceType.itemLabel === "منتج" ? "المنتجات" : "الخدمات"}</span>
-                                <ArrowRight className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
-
-                          {/* Menu Page */}
-                          {currentPage === "menu" && (
-                            <>
-                              {/* Toolbar - View Mode & Filters */}
-                              <div className="flex items-center justify-between gap-2 -mx-3 px-3 pb-2">
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    onClick={() => setViewMode("list")}
-                                    className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                                  >
-                                    <List className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => setViewMode("grid")}
-                                    className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                                  >
-                                    <Grid3x3 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    onClick={() => setShowAdvanced(!showAdvanced)}
-                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-                                  >
-                                    <Filter className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => setIsDarkMode(!isDarkMode)}
-                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-                                  >
-                                    {isDarkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Categories Scrollable Tabs */}
-                              <div className="flex gap-1.5 overflow-x-auto pb-1.5 -mx-3 px-3" style={{ scrollbarWidth: 'none' }}>
-                                {categories.map((cat) => (
-                                  <button
-                                    key={cat.id}
-                                    onClick={() => setSelectedCategory(cat.id)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap transition-all ${selectedCategory === cat.id
-                                      ? `${getTextColor()} shadow-md`
-                                      : "bg-white text-foreground border border-border hover:bg-secondary"
-                                      }`}
-                                    style={selectedCategory === cat.id ? {
-                                      background: selectedTheme === "default" ? "transparent" : currentTheme.gradient,
-                                      border: selectedTheme === "default" ? "2px solid " + currentTheme.accent : "none"
-                                    } : {}}
-                                  >
-                                    <span className="text-sm">{cat.icon}</span>
-                                    <span className="text-xs font-medium">{cat.name}</span>
-                                  </button>
-                                ))}
-                              </div>
-
-                              {/* Featured Banner */}
-                              {selectedCategory === "all" && showFeatured && (
-                                <div
-                                  className={`relative rounded-xl overflow-hidden p-3 ${selectedTheme === "default"
-                                    ? "bg-primary/10 border border-primary/20"
-                                    : ""
-                                    }`}
-                                  style={selectedTheme !== "default" ? {
-                                    background: currentTheme.gradient
-                                  } : {}}
-                                >
-                                  <div className={`flex items-center justify-between ${getTextColor()}`}>
-                                    <div>
-                                      <div className="flex items-center gap-1.5 mb-0.5">
-                                        <Flame className={`w-3 h-3 ${selectedTheme === "default" ? "fill-primary text-primary" : "fill-white"}`} />
-                                        <span className="text-[10px] font-semibold uppercase tracking-wider">
-                                          {serviceType === "restaurant" ? "الأطباق المميزة" :
-                                            serviceType === "cafe" ? "المشروبات المميزة" :
-                                              serviceType === "salon" ? "الخدمات المميزة" :
-                                                serviceType === "pharmacy" ? "المنتجات المميزة" :
-                                                  serviceType === "store" ? "العروض المميزة" :
-                                                    "الخدمات المميزة"}
-                                        </span>
-                                      </div>
-                                      <p className="text-xs">
-                                        {serviceType === "restaurant" ? "خصم 15% على الطلبات المميزة" :
-                                          serviceType === "cafe" ? "خصم 20% على المشروبات المميزة" :
-                                            serviceType === "salon" ? "خصم 25% على الخدمات المميزة" :
-                                              serviceType === "pharmacy" ? "خصم 10% على المنتجات المميزة" :
-                                                serviceType === "store" ? "خصم 30% على العروض المميزة" :
-                                                  "خصم خاص على الخدمات المميزة"}
-                                      </p>
-                                    </div>
-                                    <div className="text-2xl">
-                                      {serviceType === "restaurant" ? "🔥" :
-                                        serviceType === "cafe" ? "☕" :
-                                          serviceType === "salon" ? "✨" :
-                                            serviceType === "pharmacy" ? "💊" :
-                                              serviceType === "store" ? "🛍️" :
-                                                "⭐"}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Menu Items - Grid or List View */}
-                              {viewMode === "list" ? (
-                                <div className="space-y-2">
-                                  {filteredItems.map((item, index) => (
-                                    <div
-                                      key={item.id}
-                                      className={`bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-md transition-all hover-lift animate-fade-in-up ${isDarkMode ? "bg-slate-800 border-slate-700" : ""}`}
-                                      style={{ animationDelay: `${index * 0.1}s` }}
-                                    >
-                                      <div className="flex gap-2 p-2">
-                                        {/* Item Image */}
-                                        <div
-                                          className="relative rounded-lg overflow-hidden flex-shrink-0 cursor-pointer group"
-                                          style={{ width: "72px", height: "72px" }}
-                                          onClick={() => setSelectedImage(item.image)}
-                                        >
-                                          <img
-                                            src={imageQuality === "hd" ? item.image.replace("?w=400", "?w=800&q=90") : item.image}
-                                            alt={item.name}
-                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                            loading="lazy"
-                                          />
-                                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                            <ZoomIn className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                                          </div>
-                                          {item.featured && showFeatured && (
-                                            <div className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5 z-10">
-                                              <Star className="w-2 h-2 fill-white" />
-                                              <span>مميز</span>
-                                            </div>
-                                          )}
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setFavorites(prev =>
-                                                prev.includes(item.id)
-                                                  ? prev.filter(id => id !== item.id)
-                                                  : [...prev, item.id]
-                                              );
-                                            }}
-                                            className="absolute bottom-0.5 left-0.5 p-1 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors z-10"
-                                          >
-                                            <Heart
-                                              className={`w-3 h-3 ${favorites.includes(item.id) ? "fill-red-500 text-red-500" : "text-muted-foreground"}`}
-                                            />
-                                          </button>
-                                        </div>
-
-                                        {/* Item Details */}
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-start justify-between gap-1.5 mb-0.5">
-                                            <h3 className="font-bold text-foreground text-sm leading-tight">
-                                              {item.name}
-                                            </h3>
-                                            <span
-                                              className="font-bold whitespace-nowrap text-xs"
-                                              style={{ color: currentTheme.accent }}
-                                            >
-                                              {item.price} EGP
-                                            </span>
-                                          </div>
-                                          <p className="text-muted-foreground mb-1 line-clamp-2 text-xs">
-                                            {item.description}
-                                          </p>
-                                          {(showRatings || showTime) && (
-                                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                                              {item.rating && showRatings && (
-                                                <div className="flex items-center gap-0.5">
-                                                  <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
-                                                  <span>{item.rating}</span>
-                                                </div>
-                                              )}
-                                              {item.time && showTime && (
-                                                <div className="flex items-center gap-0.5">
-                                                  <Clock className="w-2.5 h-2.5" />
-                                                  <span>{item.time}</span>
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      {/* Add to Cart Button */}
-                                      <div className="px-2 pb-2">
-                                        <button
-                                          onClick={handleAddToCart}
-                                          className={`w-full py-2 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all duration-150 ${selectedTheme === "default" ? "text-primary border-2 border-primary bg-primary/10 hover:bg-primary/20" : "text-white"
-                                            }`}
-                                          style={selectedTheme !== "default" ? { background: currentTheme.gradient } : {}}
-                                        >
-                                          <Plus className="w-3 h-3" />
-                                          أضف للسلة
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                /* Grid View */
-                                <div className="grid grid-cols-2 gap-2">
-                                  {filteredItems.map((item, index) => (
-                                    <div
-                                      key={item.id}
-                                      className={`bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-md transition-all hover-lift animate-fade-in-up ${isDarkMode ? "bg-slate-800 border-slate-700" : ""}`}
-                                      style={{ animationDelay: `${index * 0.1}s` }}
-                                    >
-                                      <div
-                                        className="relative aspect-square cursor-pointer group"
-                                        onClick={() => setSelectedImage(item.image)}
-                                      >
-                                        <img
-                                          src={imageQuality === "hd" ? item.image.replace("?w=400", "?w=800&q=90") : item.image}
-                                          alt={item.name}
-                                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                          loading="lazy"
-                                        />
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                          <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </div>
-                                        {item.featured && showFeatured && (
-                                          <div className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5 z-10">
-                                            <Star className="w-2 h-2 fill-white" />
-                                          </div>
-                                        )}
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setFavorites(prev =>
-                                              prev.includes(item.id)
-                                                ? prev.filter(id => id !== item.id)
-                                                : [...prev, item.id]
-                                            );
-                                          }}
-                                          className="absolute bottom-1 left-1 p-1 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors z-10"
-                                        >
-                                          <Heart
-                                            className={`w-3 h-3 ${favorites.includes(item.id) ? "fill-red-500 text-red-500" : "text-muted-foreground"}`}
-                                          />
-                                        </button>
-                                      </div>
-                                      <div className="p-2">
-                                        <h3 className="font-bold text-foreground text-xs leading-tight mb-0.5 line-clamp-1">
-                                          {item.name}
-                                        </h3>
-                                        <p className="text-muted-foreground mb-1.5 line-clamp-1 text-[10px]">
-                                          {item.description}
-                                        </p>
-                                        <div className="flex items-center justify-between mb-1.5">
-                                          <span className="text-xs font-bold" style={{ color: currentTheme.accent }}>
-                                            {item.price} EGP
-                                          </span>
-                                          {item.rating && showRatings && (
-                                            <div className="flex items-center gap-0.5">
-                                              <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
-                                              <span className="text-[10px]">{item.rating}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                        <button
-                                          onClick={handleAddToCart}
-                                          className={`w-full py-1.5 rounded-lg font-semibold text-[10px] flex items-center justify-center gap-1 ${selectedTheme === "default" ? "text-primary border border-primary bg-primary/10 hover:bg-primary/20" : "text-white"}`}
-                                          style={selectedTheme !== "default" ? { background: currentTheme.gradient } : {}}
-                                        >
-                                          <Plus className="w-2.5 h-2.5" />
-                                          أضف
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </>
-                          )}
-
-                          {/* Cart Page */}
-                          {currentPage === "cart" && (
-                            <div className="space-y-3 animate-fade-in">
-                              {cartCount > 0 ? (
-                                <>
-                                  <div className="bg-white rounded-xl p-3 border border-border">
-                                    <div className="flex items-center justify-between mb-3">
-                                      <h3 className="text-sm font-bold text-foreground">السلة ({cartCount})</h3>
-                                      <button
-                                        onClick={() => setCartCount(0)}
-                                        className="text-xs text-red-500 hover:text-red-600"
-                                      >
-                                        مسح الكل
-                                      </button>
-                                    </div>
-                                    <div className="space-y-2 mb-3">
-                                      {filteredItems.slice(0, cartCount).map((item) => (
-                                        <div key={item.id} className="flex gap-2 items-center">
-                                          <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                                            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <h4 className="text-xs font-bold text-foreground">{item.name}</h4>
-                                            <p className="text-[10px] text-muted-foreground">{item.price} EGP</p>
-                                          </div>
-                                          <button className="text-red-500 hover:text-red-600">
-                                            <X className="w-4 h-4" />
-                                          </button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                    <div className="border-t border-border pt-2">
-                                      <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs text-muted-foreground">المجموع</span>
-                                        <span className="text-sm font-bold" style={{ color: currentTheme.accent }}>
-                                          {filteredItems.slice(0, cartCount).reduce((sum, item) => sum + parseInt(item.price), 0)} EGP
-                                        </span>
-                                      </div>
-                                      <button
-                                        className={`w-full py-2.5 rounded-lg font-semibold text-xs ${selectedTheme === "default" ? "text-primary border-2 border-primary bg-primary/10 hover:bg-primary/20" : "text-white"}`}
-                                        style={selectedTheme !== "default" ? { background: currentTheme.gradient } : {}}
-                                      >
-                                        إتمام الطلب
-                                      </button>
-                                    </div>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="flex flex-col items-center justify-center py-8 text-center">
-                                  <ShoppingCart className="w-16 h-16 text-muted-foreground/30 mb-3" />
-                                  <p className="text-sm text-muted-foreground mb-2">السلة فارغة</p>
-                                  <button
-                                    onClick={() => setCurrentPage("menu")}
-                                    className={`text-xs px-4 py-2 rounded-lg ${selectedTheme === "default" ? "text-primary border border-primary bg-primary/10" : "text-white"}`}
-                                    style={selectedTheme !== "default" ? { background: currentTheme.gradient } : {}}
-                                  >
-                                    تصفح {currentServiceType.itemLabel === "طبق" ? "القائمة" : currentServiceType.itemLabel === "منتج" ? "المنتجات" : "الخدمات"}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Profile Page */}
-                          {currentPage === "profile" && (
-                            <div className="space-y-3 animate-fade-in">
-                              {/* Profile Header */}
-                              <div
-                                className={`relative rounded-xl overflow-hidden p-4 ${selectedTheme === "default" ? "bg-primary/10 border border-primary/20" : ""}`}
-                                style={selectedTheme !== "default" ? { background: currentTheme.gradient } : {}}
-                              >
-                                <div className={`flex flex-col items-center text-center ${getTextColor()}`}>
-                                  <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm mb-2 flex items-center justify-center">
-                                    <User className="w-8 h-8" />
-                                  </div>
-                                  <h3 className="text-base font-bold mb-1">{displayName}</h3>
-                                  <p className="text-xs opacity-90">عضو منذ 2024</p>
-                                </div>
-                              </div>
-
-                              {/* Stats */}
-                              <div className="grid grid-cols-3 gap-2">
-                                <div className="bg-white rounded-lg p-2 text-center border border-border">
-                                  <div className="text-lg font-bold text-primary">{cartCount}</div>
-                                  <div className="text-[10px] text-muted-foreground">طلبات</div>
-                                </div>
-                                <div className="bg-white rounded-lg p-2 text-center border border-border">
-                                  <div className="text-lg font-bold text-primary">4.8</div>
-                                  <div className="text-[10px] text-muted-foreground">تقييم</div>
-                                </div>
-                                <div className="bg-white rounded-lg p-2 text-center border border-border">
-                                  <div className="text-lg font-bold text-primary">{favorites.length}</div>
-                                  <div className="text-[10px] text-muted-foreground">مفضلة</div>
-                                </div>
-                              </div>
-
-                              {/* Reviews Section */}
-                              <div className="bg-white rounded-lg p-3 border border-border">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <Star className="w-4 h-4 text-primary fill-primary" />
-                                    <span className="text-xs font-semibold text-foreground">التقييمات ({reviews.length})</span>
-                                  </div>
-                                  <button
-                                    onClick={() => setShowReviews(!showReviews)}
-                                    className="text-[10px] text-primary hover:underline"
-                                  >
-                                    {showReviews ? "إخفاء" : "عرض الكل"}
-                                  </button>
-                                </div>
-                                {showReviews && (
-                                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                                    {reviews.length > 0 ? (
-                                      reviews.map((review) => (
-                                        <div key={review.id} className="p-2 bg-secondary/50 rounded-lg">
-                                          <div className="flex items-center justify-between mb-1">
-                                            <span className="text-xs font-semibold">{review.userName}</span>
-                                            <div className="flex items-center gap-1">
-                                              {[...Array(5)].map((_, i) => (
-                                                <Star
-                                                  key={i}
-                                                  className={`w-2.5 h-2.5 ${i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
-                                                />
-                                              ))}
-                                            </div>
-                                          </div>
-                                          <p className="text-[10px] text-muted-foreground line-clamp-2">{review.comment}</p>
-                                          <span className="text-[9px] text-muted-foreground">{review.date}</span>
-                                        </div>
-                                      ))
-                                    ) : (
-                                      <p className="text-[10px] text-muted-foreground text-center py-2">لا توجد تقييمات بعد</p>
-                                    )}
-                                    <button
-                                      onClick={() => {
-                                        const userName = prompt("اسمك:");
-                                        const rating = parseInt(prompt("التقييم (1-5):") || "5");
-                                        const comment = prompt("تعليقك:");
-                                        if (userName && rating && comment) {
-                                          addReview({ userName, rating: Math.min(5, Math.max(1, rating)), comment });
-                                        }
-                                      }}
-                                      className="w-full py-1.5 px-2 bg-primary/10 text-primary rounded-lg text-xs font-semibold hover:bg-primary/20 transition-colors"
-                                    >
-                                      إضافة تقييم
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Menu Options */}
-                              <div className="space-y-1">
-                                <div className="bg-white rounded-lg p-3 border border-border flex items-center justify-between hover:bg-secondary transition-colors cursor-pointer">
-                                  <div className="flex items-center gap-2">
-                                    <Bookmark className="w-4 h-4 text-primary" />
-                                    <span className="text-xs font-medium text-foreground">المفضلة ({favorites.length})</span>
-                                  </div>
-                                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                                </div>
-                                <div className="bg-white rounded-lg p-3 border border-border flex items-center justify-between hover:bg-secondary transition-colors cursor-pointer">
-                                  <div className="flex items-center gap-2">
-                                    <ShoppingCart className="w-4 h-4 text-primary" />
-                                    <span className="text-xs font-medium text-foreground">الطلبات السابقة</span>
-                                  </div>
-                                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                                </div>
-                                <div className="bg-white rounded-lg p-3 border border-border flex items-center justify-between hover:bg-secondary transition-colors cursor-pointer">
-                                  <div className="flex items-center gap-2">
-                                    <MapPin className="w-4 h-4 text-primary" />
-                                    <span className="text-xs font-medium text-foreground">العناوين المحفوظة</span>
-                                  </div>
-                                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                                </div>
-                                <div className="bg-white rounded-lg p-3 border border-border flex items-center justify-between hover:bg-secondary transition-colors cursor-pointer">
-                                  <div className="flex items-center gap-2">
-                                    <Bell className="w-4 h-4 text-primary" />
-                                    <span className="text-xs font-medium text-foreground">الإشعارات</span>
-                                  </div>
-                                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                                </div>
-                                <div className="bg-white rounded-lg p-3 border border-border flex items-center justify-between hover:bg-secondary transition-colors cursor-pointer">
-                                  <div className="flex items-center gap-2">
-                                    <Settings className="w-4 h-4 text-primary" />
-                                    <span className="text-xs font-medium text-foreground">الإعدادات</span>
-                                  </div>
-                                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                                </div>
-                                <div className="bg-white rounded-lg p-3 border border-border flex items-center justify-between hover:bg-secondary transition-colors cursor-pointer">
-                                  <div className="flex items-center gap-2">
-                                    {isDarkMode ? <Sun className="w-4 h-4 text-primary" /> : <Moon className="w-4 h-4 text-primary" />}
-                                    <span className="text-xs font-medium text-foreground">الوضع الليلي</span>
-                                  </div>
-                                  <button
-                                    onClick={() => setIsDarkMode(!isDarkMode)}
-                                    className={`relative w-10 h-5 rounded-full transition-colors ${isDarkMode ? "bg-primary" : "bg-gray-300"}`}
-                                  >
-                                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${isDarkMode ? "translate-x-5" : ""}`} />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                          <Smartphone className="w-16 h-16 text-muted-foreground/30 mb-4" />
-                          <p className="text-muted-foreground text-sm">
-                            اكتب اسم {currentServiceType.name} أعلاه لترى المعاينة
-                          </p>
-                        </div>
+                        <button
+                          onClick={() => setShowLoginPrompt(true)}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary to-cyan-500 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-primary/30 transition-all active:scale-[0.98]"
+                        >
+                          <LogIn size={14} />
+                          Login to Save
+                        </button>
                       )}
                     </div>
+                  </div>
 
-                    {/* Bottom Navigation Bar - Fixed at Bottom */}
-                    {isPreviewVisible && (
-                      <div className="bg-white border-t border-border px-2 py-1.5 flex items-center justify-around flex-shrink-0">
-                        <button
-                          onClick={() => setCurrentPage("home")}
-                          className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors ${currentPage === "home" ? "" : "text-muted-foreground hover:text-primary"}`}
-                          style={currentPage === "home" ? { color: currentTheme.accent } : {}}
-                        >
-                          <Home className="w-4 h-4" style={currentPage === "home" ? { fill: currentTheme.accent } : {}} />
-                          <span className="text-[10px] font-medium">الرئيسية</span>
-                        </button>
-                        <button
-                          onClick={() => setCurrentPage("menu")}
-                          className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors ${currentPage === "menu" ? "" : "text-muted-foreground hover:text-primary"}`}
-                          style={currentPage === "menu" ? { color: currentTheme.accent } : {}}
-                        >
-                          <Search className="w-4 h-4" style={currentPage === "menu" ? { fill: currentTheme.accent } : {}} />
-                          <span className="text-[10px] font-medium">القائمة</span>
-                        </button>
-                        <button
-                          onClick={() => setCurrentPage("cart")}
-                          className={`relative flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors ${currentPage === "cart" ? "" : "text-muted-foreground hover:text-primary"}`}
-                          style={currentPage === "cart" ? { color: currentTheme.accent } : {}}
-                        >
-                          <ShoppingCart className="w-4 h-4" style={currentPage === "cart" ? { fill: currentTheme.accent } : {}} />
-                          {cartCount > 0 && (
-                            <span className="absolute top-0 right-1 w-3.5 h-3.5 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center font-bold">
-                              {cartCount}
-                            </span>
-                          )}
-                          <span className="text-[10px] font-medium">السلة</span>
-                        </button>
-                        <button
-                          onClick={() => setCurrentPage("profile")}
-                          className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors ${currentPage === "profile" ? "" : "text-muted-foreground hover:text-primary"}`}
-                          style={currentPage === "profile" ? { color: currentTheme.accent } : {}}
-                        >
-                          <User className="w-4 h-4" style={currentPage === "profile" ? { fill: currentTheme.accent } : {}} />
-                          <span className="text-[10px] font-medium">حسابي</span>
-                        </button>
+                  {/* ── QR CODE CARD ── */}
+                  <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-primary/10 p-5 relative overflow-hidden shadow-lg shadow-primary/[0.03]">
+                    <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-primary/10 via-transparent to-transparent pointer-events-none" />
+                    <div className="relative z-10 text-center">
+                      <div className="flex items-center justify-center gap-2 mb-3"><QrCode size={16} className="text-primary" /><span className="text-sm font-bold text-foreground">Scan to Preview</span></div>
+                      <div className="bg-white p-4 rounded-xl mb-3 inline-block shadow-sm">
+                        <QRCodeSVG
+                          value={savedDesignId
+                            ? getPreviewUrl(savedDesignId)
+                            : `${window.location.origin}/demo?name=${encodeURIComponent(displayName)}&service=${serviceType}&theme=${selectedTheme}&template=${selectedTemplate}`
+                          }
+                          size={140} level="H" includeMargin={false} fgColor="#1e293b" bgColor="#ffffff"
+                        />
                       </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* QR Code Card - Only show when preview is visible */}
-              {isPreviewVisible && (
-                <div className="glass-card p-4 sm:p-6 rounded-xl sm:rounded-2xl glow-border-hover animate-fade-in">
-                  <div className="text-center mb-3 sm:mb-4">
-                    <QrCode className="w-5 h-5 sm:w-6 sm:h-6 text-primary mx-auto mb-2" />
-                    <h3 className="text-base sm:text-lg font-bold text-foreground mb-1">
-                      امسح للاختبار
-                    </h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      افتح على الموبايل
-                    </p>
-                  </div>
-
-                  <div className="bg-white p-3 sm:p-4 rounded-lg mb-3 sm:mb-4 flex items-center justify-center">
-                    <QRCodeSVG
-                      value={`${window.location.origin}/demo?name=${encodeURIComponent(displayName)}&service=${serviceType}`}
-                      size={160}
-                      level="H"
-                      includeMargin={true}
-                      fgColor="#000000"
-                      bgColor="#ffffff"
-                    />
-                  </div>
-
-                  <div className="text-center">
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-2">
-                      <strong className="text-foreground">{displayName}</strong>
-                    </p>
-                    <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                      <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      <span>استخدم كاميرا الموبايل</span>
+                      <div className="mb-3"><p className="text-xs text-slate-400 mb-1">Preview for</p><p className="text-sm font-bold text-primary">{displayName}</p></div>
+                      {savedDesignId && (
+                        <div className="mb-3 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200/50">
+                          <p className="text-[10px] text-emerald-600 font-bold flex items-center justify-center gap-1"><CheckCircle2 size={10} />Real-time preview enabled</p>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 mb-3"><Smartphone size={12} /><span>Use your phone camera to scan</span></div>
+                      <button onClick={() => {
+                        const link = savedDesignId
+                          ? getPreviewUrl(savedDesignId)
+                          : `${window.location.origin}/demo?name=${encodeURIComponent(displayName)}&service=${serviceType}&theme=${selectedTheme}&template=${selectedTemplate}`;
+                        copyToClipboard(link, "Link copied!", "Failed to copy");
+                      }} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary/10 border border-primary/20 text-primary rounded-xl text-xs font-bold hover:bg-primary/20 transition-all"><Copy size={12} />Copy Link</button>
                     </div>
                   </div>
 
-                  <button
-                    onClick={async () => {
-                      const link = `${window.location.origin}/demo?name=${encodeURIComponent(displayName)}&service=${serviceType}`;
-                      try {
-                        if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
-                          await navigator.clipboard.writeText(link);
-                          toast.success("تم نسخ الرابط!");
-                        } else {
-                          // Fallback for older browsers
-                          const textArea = document.createElement("textarea");
-                          textArea.value = link;
-                          textArea.style.position = "fixed";
-                          textArea.style.opacity = "0";
-                          document.body.appendChild(textArea);
-                          textArea.select();
-                          try {
-                            document.execCommand("copy");
-                            toast.success("تم نسخ الرابط!");
-                          } catch (err) {
-                            console.error("Failed to copy:", err);
-                            toast.error("فشل نسخ الرابط. الرابط: " + link);
-                          }
-                          document.body.removeChild(textArea);
-                        }
-                      } catch (error) {
-                        console.error("Failed to copy link:", error);
-                        toast.error("فشل نسخ الرابط. الرابط: " + link);
-                      }
-                    }}
-                    className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-secondary text-foreground rounded-lg text-xs font-semibold hover:bg-secondary/80 transition-colors"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    نسخ الرابط
-                  </button>
-                </div>
-              )}
+                  <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-violet-200/40 p-4 relative overflow-hidden shadow-lg shadow-violet-500/[0.03]">
+                    <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-violet-400/10 via-transparent to-transparent pointer-events-none" />
+                    <div className="relative z-10"><span className="text-xs font-bold text-slate-400 block mb-3">Quick Actions</span><div className="grid grid-cols-2 gap-2">{[{ onClick: copyShareLink, icon: Share2, color: "text-cyan-500", label: "Share" }, { onClick: exportData, icon: Download, color: "text-green-500", label: "Export" }, { onClick: exportToCSV, icon: FileDown, color: "text-blue-500", label: "CSV" }, { onClick: () => window.print(), icon: ExternalLink, color: "text-violet-500", label: "Print" }].map(({ onClick, icon: Icon, color, label }) => (<button key={label} onClick={onClick} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-background/80 border border-slate-200/60 hover:bg-white transition-all"><Icon size={14} className={color} /><span className="text-[10px] text-slate-400 font-medium">{label}</span></button>))}</div></div>
+                  </div>
 
-              {/* Image Zoom Modal */}
-              {selectedImage && (
-                <div
-                  className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 animate-fade-in"
-                  onClick={() => setSelectedImage(null)}
-                >
-                  <div className="relative max-w-4xl w-full max-h-[90vh]">
-                    <button
-                      onClick={() => setSelectedImage(null)}
-                      className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors z-10"
-                    >
-                      <X className="w-6 h-6" />
-                    </button>
-                    <img
-                      src={selectedImage}
-                      alt="Zoomed"
-                      className="w-full h-full object-contain rounded-lg"
-                    />
+                  <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-slate-200/60 p-4 shadow-sm">
+                    <span className="text-xs font-bold text-slate-400 block mb-2">Shortcuts</span>
+                    <div className="space-y-1.5 text-[10px]">{[{ key: "Ctrl+E", action: "Export CSV" }, { key: "Ctrl+I", action: "Add Item" }].map(({ key, action }) => (<div key={key} className="flex items-center justify-between"><span className="text-slate-400">{action}</span><kbd className="px-1.5 py-0.5 rounded bg-muted text-slate-400 font-mono text-[9px]">{key}</kbd></div>))}</div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+          </div>
+
+          {/* ============ BOTTOM CTA ============ */}
+          <motion.div className="mt-12 sm:mt-16 lg:mt-20 text-center" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
+            <p className="text-muted-foreground mb-4 text-sm sm:text-base">{t("هذه مجرد معاينة. المنتج النهائي سيكون أكثر احترافية!", "This is just a preview. The real product will be even more professional!")}</p>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-xs sm:text-sm text-slate-400">
+              {[
+                { icon: CheckCircle2, text: t("تصميم احترافي", "Professional Design") },
+                { icon: CheckCircle2, text: t("2 إعدادات مميزة", "2 Signature Presets") },
+                { icon: CheckCircle2, text: t("مكوّنات قابلة للدمج والتخصيص", "Mix-and-Match Components") },
+                ...(isPreviewVisible ? [{ icon: TrendingUp, text: t(`${stats.totalItems} عنصر`, `${stats.totalItems} Items`) }, { icon: Eye, text: t("معاينة مباشرة", "Live Preview") }] : [])
+              ].map(({ icon: Icon, text }) => (
+                <span key={text} className="flex items-center gap-2"><Icon className="w-4 h-4 text-primary" />{text}</span>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* ============ IMAGE ZOOM MODAL ============ */}
+      <AnimatePresence>{selectedImage && (() => {
+        const zoomedItem = allMenuItems.find(i => i.image === selectedImage);
+        const zoomedIndex = filteredItems.findIndex(i => i.image === selectedImage);
+        const handlePrev = (e: React.MouseEvent) => { e.stopPropagation(); if (zoomedIndex > 0) setSelectedImage(filteredItems[zoomedIndex - 1].image); };
+        const handleNext = (e: React.MouseEvent) => { e.stopPropagation(); if (zoomedIndex < filteredItems.length - 1) setSelectedImage(filteredItems[zoomedIndex + 1].image); };
+        return (
+          <motion.div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setSelectedImage(null)}
+            onKeyDown={(e) => { if (e.key === "Escape") setSelectedImage(null); if (e.key === "ArrowLeft") handlePrev(e as unknown as React.MouseEvent); if (e.key === "ArrowRight") handleNext(e as unknown as React.MouseEvent); }}
+            tabIndex={0} style={{ outline: "none" }}>
+            <button onClick={() => setSelectedImage(null)} className="absolute top-6 right-6 text-white/60 hover:text-white z-10"><X className="w-6 h-6" /></button>
+            {zoomedIndex > 0 && <button onClick={handlePrev} className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"><ChevronDown className="w-5 h-5 -rotate-90" /></button>}
+            {zoomedIndex < filteredItems.length - 1 && <button onClick={handleNext} className="absolute right-16 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"><ChevronDown className="w-5 h-5 rotate-90" /></button>}
+            <div className="flex flex-col items-center gap-4" onClick={e => e.stopPropagation()}>
+              <motion.img src={selectedImage} alt="Zoomed" className="max-w-4xl w-full max-h-[75vh] object-contain rounded-lg" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} />
+              {zoomedItem && (
+                <div className="text-center">
+                  <p className="text-white font-bold text-lg">{zoomedItem.name}</p>
+                  <div className="flex items-center justify-center gap-3 mt-1">
+                    <span className="font-bold" style={{ color: effectiveAccent }}>{zoomedItem.price} EGP</span>
+                    {zoomedItem.rating && <span className="text-yellow-400 text-sm flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-yellow-400" />{zoomedItem.rating}</span>}
+                    {zoomedIndex + 1 > 0 && <span className="text-white/40 text-xs">{zoomedIndex + 1} / {filteredItems.length}</span>}
                   </div>
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        );
+      })()}</AnimatePresence>
 
-        {/* Bottom CTA */}
-        <div className="mt-8 sm:mt-12 lg:mt-16 text-center reveal px-4" style={{ animationDelay: "0.4s" }}>
-          <p className="text-muted-foreground mb-3 sm:mb-4 text-sm sm:text-base">
-            هذا مجرد معاينة بسيطة. {currentServiceType.itemLabel} الحقيقي بيكون أكثر احترافية وتفصيلاً!
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-primary" />
-              تصميم احترافي متقدم
-            </span>
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-primary" />
-              {currentServiceType.itemLabel} تفاعلي كامل
-            </span>
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-primary" />
-              نظام طلبات متكامل
-            </span>
-            {isPreviewVisible && (
-              <>
-                <span className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                  {stats.totalItems} عنصر
-                </span>
-                <span className="flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-primary" />
-                  معاينة مباشرة
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* ============ QR MODAL ============ */}
+      <AnimatePresence>{showQRModal && (<motion.div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowQRModal(false)}><motion.div className="bg-white rounded-3xl p-8 border border-slate-200 max-w-md w-full text-center relative shadow-2xl" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={(e) => e.stopPropagation()}><button onClick={() => setShowQRModal(false)} className="absolute top-4 right-4 text-slate-300 hover:text-slate-500"><X size={18} /></button><QrCode size={24} className="text-primary mx-auto mb-3" /><h3 className="text-xl font-bold text-foreground mb-1">Scan QR Code</h3><p className="text-sm text-muted-foreground mb-6">Open this preview on your mobile device</p><div className="bg-background p-6 rounded-2xl mb-6 inline-block"><QRCodeSVG value={savedDesignId ? getPreviewUrl(savedDesignId) : `${window.location.origin}/demo?name=${encodeURIComponent(displayName)}&service=${serviceType}&theme=${selectedTheme}&template=${selectedTemplate}`} size={200} level="H" includeMargin={true} fgColor="#1e293b" bgColor="#f8fafc" /></div><p className="text-sm font-bold text-primary mb-1">{displayName}</p>{savedDesignId && <p className="text-xs text-emerald-500 mb-2 flex items-center justify-center gap-1"><CheckCircle2 size={12} />Full design preview enabled</p>}<p className="text-xs text-muted-foreground mb-4">Point your phone camera at the QR code</p><button onClick={() => { const link = savedDesignId ? getPreviewUrl(savedDesignId) : `${window.location.origin}/demo?name=${encodeURIComponent(displayName)}&service=${serviceType}&theme=${selectedTheme}&template=${selectedTemplate}`; copyToClipboard(link, "Link copied!", "Failed to copy"); }} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all"><Copy size={14} />Copy Link Instead</button></motion.div></motion.div>)}</AnimatePresence>
+
+      {/* ============ LOGIN PROMPT MODAL ============ */}
+      <AnimatePresence>{showLoginPrompt && (
+        <motion.div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowLoginPrompt(false)}>
+          <motion.div className="bg-white rounded-3xl max-w-sm w-full relative shadow-2xl overflow-hidden" initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-primary to-cyan-500 p-6 text-white text-center relative overflow-hidden">
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="relative z-10">
+                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mx-auto mb-3">
+                  <LogIn size={24} />
+                </div>
+                <h3 className="text-lg font-bold">Login to Save</h3>
+                <p className="text-xs text-white/70 mt-1">Sign in to save your design to your account</p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <div className="bg-gradient-to-r from-violet-50 to-cyan-50 rounded-xl p-3 space-y-1.5">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Why login?</p>
+                {[
+                  { icon: "💾", text: "Your design auto-saves as you work" },
+                  { icon: "📱", text: "Access your designs from any device" },
+                  { icon: "🎨", text: "Admin can build your real website from it" },
+                ].map(({ icon, text }) => (
+                  <div key={text} className="flex items-center gap-2 text-xs text-slate-500">
+                    <span className="text-sm">{icon}</span>{text}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={() => setShowLoginPrompt(false)} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 text-sm font-bold hover:bg-background transition-all">
+                  Later
+                </button>
+                <button onClick={handleLoginRedirect} className="flex-[2] py-3 rounded-xl bg-gradient-to-r from-primary to-cyan-500 text-white text-sm font-bold hover:shadow-lg hover:shadow-primary/30 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+                  <LogIn size={16} /> Login Now
+                </button>
+              </div>
+
+              <p className="text-center text-[10px] text-slate-400">
+                Don't have an account?{" "}
+                <button onClick={() => { setShowLoginPrompt(false); navigate('/client-signup'); }} className="text-primary font-bold hover:underline">Sign up free</button>
+              </p>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}</AnimatePresence>
+
+      {/* ============ TOOL INFO MODAL ============ */}
+      <AnimatePresence>{showStudioInfoModal && (
+        <motion.div
+          className="fixed inset-0 z-[110] bg-black/65 backdrop-blur-sm flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setShowStudioInfoModal(false)}
+        >
+          <motion.div
+            className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 border border-slate-200 shadow-2xl"
+            initial={{ scale: 0.94, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.94, opacity: 0, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-500 font-bold">{t("استوديو التصميم المباشر", "Live Design Studio")}</p>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">{t("معاينة ميزة قريبة", "Coming Soon Preview")}</h3>
+              </div>
+              <button onClick={() => setShowStudioInfoModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm text-slate-600">
+              <p>
+                {t("تتيح هذه الأداة للعملاء والأدمن تصميم معاينة تطبيق موبايل في الوقت الحقيقي عبر تعديل الهوية، والمحتوى، ونمط التخطيط، والكروت، والتنقل، والأزرار.", "This tool lets clients and admins design a mobile app preview in real time by changing branding, content, layout style, cards, navigation, and buttons.")}
+              </p>
+              <p>
+                {t("وتُستخدم أيضًا للتصدير والمشاركة ومراجعة فكرة التطبيق قبل بناء النسخة الإنتاجية النهائية.", "It is also used to export, share, and review the app concept before building the final production app.")}
+              </p>
+              <div className="rounded-2xl bg-[linear-gradient(135deg,#fff7ed_0%,#ecfeff_100%)] border border-amber-200 px-4 py-4 text-slate-700">
+                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-amber-600">{t("قريبًا", "Coming Soon")}</p>
+                <p className="mt-2 text-sm font-semibold text-slate-800">
+                  {t("الاستوديو قيد التطوير الفعلي الآن وسيفتح كمعمل أفكار تفاعلي في إصدار قادم.", "The studio is in active production and will open as an interactive concept lab in a future release.")}
+                </p>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px] font-bold uppercase tracking-[0.16em]">
+                  <div className="rounded-xl border border-white bg-white/70 px-2 py-2 text-cyan-700">{t("الهوية", "Branding")}</div>
+                  <div className="rounded-xl border border-white bg-white/70 px-2 py-2 text-emerald-700">{t("المعاينة", "Preview")}</div>
+                  <div className="rounded-xl border border-white bg-white/70 px-2 py-2 text-amber-700">{t("التصدير", "Export")}</div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowStudioInfoModal(false)}
+              className="mt-5 w-full rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 text-white py-2.5 text-sm font-bold hover:opacity-90 transition-all"
+            >
+              Got It
+            </button>
+          </motion.div>
+        </motion.div>
+      )}</AnimatePresence>
+      {t("تم", "Got It")}
+      {/* Add / Edit Item Modal */}
+      <AddItemModal
+        open={showAddItem}
+        onClose={() => { setShowAddItem(false); setEditingItem(null); }}
+        onSave={handleModalSave}
+        categories={categories}
+        editingItem={editingItem}
+        effectiveAccent={effectiveAccent}
+      />
     </section>
   );
 };

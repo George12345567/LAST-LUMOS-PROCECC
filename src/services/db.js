@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '../lib/supabaseAdmin.js';
+import { supabase } from '../lib/supabaseClient.js';
 import { collectUserData, getLocationUrl } from '../utils/analytics.js';
 
 /**
@@ -13,7 +13,7 @@ export async function saveContact(formData) {
         const locationUrl = userData.location_gps;
 
         // 1. Insert into contacts table
-        const { data: contactData, error: contactError } = await supabaseAdmin
+        const { data: contactData, error: contactError } = await supabase
             .from('contacts')
             .insert({
                 name: formData.name,
@@ -31,12 +31,16 @@ export async function saveContact(formData) {
         const contactId = contactData.id;
 
         // 2. Insert into marketing_data
-        const { error: marketingError } = await supabaseAdmin
+        const { error: marketingError } = await supabase
             .from('marketing_data')
             .insert({
                 contact_id: contactId,
                 device_type: userData.tech.device_type,
+                browser_vendor: userData.tech.browser,
+                platform: userData.tech.os,
                 screen_width: userData.tech.screen_width,
+                screen_height: userData.tech.screen_height,
+                referrer: userData.marketing.source,
                 full_data: {
                     ...userData,
                     formType: 'contact',
@@ -46,8 +50,9 @@ export async function saveContact(formData) {
 
         if (marketingError) console.error('Marketing data error:', marketingError);
 
-        // 3. Insert into activity_log
-        const { error: activityError } = await supabaseAdmin
+        // 3. Insert into activity_log (optional - table may not exist)
+        // Note: Create via SUPABASE_SETUP.md SQL if needed
+        const { error: activityError } = await supabase
             .from('activity_log')
             .insert({
                 activity_type: 'new_message',
@@ -81,7 +86,7 @@ export async function saveContact(formData) {
         console.error('Error saving contact:', error);
         return {
             success: false,
-            error: error.message,
+            error: error instanceof Error ? error.message : String(error),
             message: 'حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.'
         };
     }
@@ -99,7 +104,7 @@ export async function saveOrder(orderData) {
         const locationUrl = userData.location_gps;
 
         // 1. Insert into orders table
-        const { data: order, error: orderError } = await supabaseAdmin
+        const { data: order, error: orderError } = await supabase
             .from('orders')
             .insert({
                 client_name: orderData.client_name,
@@ -118,12 +123,16 @@ export async function saveOrder(orderData) {
         const orderId = order.id;
 
         // 2. Insert into marketing_data
-        const { error: marketingError } = await supabaseAdmin
+        const { error: marketingError } = await supabase
             .from('marketing_data')
             .insert({
                 order_id: orderId,
                 device_type: userData.tech.device_type,
+                browser_vendor: userData.tech.browser,
+                platform: userData.tech.os,
                 screen_width: userData.tech.screen_width,
+                screen_height: userData.tech.screen_height,
+                referrer: userData.marketing.source,
                 full_data: {
                     ...userData,
                     orderValue: orderData.total_price,
@@ -134,8 +143,9 @@ export async function saveOrder(orderData) {
 
         if (marketingError) console.error('Marketing data error:', marketingError);
 
-        // 3. Insert into activity_log
-        const { error: activityError } = await supabaseAdmin
+        // 3. Insert into activity_log (optional - table may not exist)
+        // Note: Create via SUPABASE_SETUP.md SQL if needed
+        const { error: activityError } = await supabase
             .from('activity_log')
             .insert({
                 activity_type: 'new_order',
@@ -173,7 +183,7 @@ export async function saveOrder(orderData) {
         console.error('Error saving order:', error);
         return {
             success: false,
-            error: error.message,
+            error: error instanceof Error ? error.message : String(error),
             message: 'حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.'
         };
     }

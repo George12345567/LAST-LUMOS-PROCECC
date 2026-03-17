@@ -1,44 +1,50 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShoppingCart, DollarSign, TrendingUp, TrendingDown, Users, MessageSquare } from 'lucide-react';
+import { ShoppingCart, DollarSign, Users, MessageSquare } from 'lucide-react';
 import { DashboardStats } from '@/types/dashboard';
+import { useLanguage } from '@/context/LanguageContext';
+import { adminText } from '@/data/adminI18n';
 
 interface StatsOverviewProps {
     stats: DashboardStats;
 }
 
 export const StatsOverview = ({ stats }: StatsOverviewProps) => {
+    const { isArabic } = useLanguage();
+
     const cards = [
         {
-            title: 'Unread Chats',
+            title: adminText('unreadChats', isArabic),
             value: stats.unreadMessages,
             icon: MessageSquare,
-            desc: stats.unreadMessages > 0 ? 'Action Required' : 'All caught up',
+            desc: stats.unreadMessages > 0 ? adminText('actionRequired', isArabic) : adminText('allCaughtUp', isArabic),
             gradient: 'bg-gradient-to-br from-indigo-500 to-blue-600',
             textColor: 'text-white'
         },
         {
-            title: 'Total Revenue',
+            title: adminText('totalRevenue', isArabic),
             value: stats.totalRevenue.toLocaleString() + ' EGP',
             icon: DollarSign,
-            desc: `Avg. ${Math.round(stats.avgOrderValue)} EGP/Order`,
+            desc: adminText('avgOrderValue', isArabic).replace('{value}', String(Math.round(stats.avgOrderValue))),
             border: 'border-green-500/20',
             iconColor: 'text-green-500',
             valueColor: 'text-green-600'
         },
         {
-            title: 'Total Orders',
+            title: adminText('totalOrders', isArabic),
             value: stats.totalOrders,
             icon: ShoppingCart,
-            desc: `${stats.completedOrders} Completed · ${stats.pendingOrders} Pending`,
+            desc: adminText('completedAndPending', isArabic)
+                .replace('{completed}', String(stats.completedOrders))
+                .replace('{pending}', String(stats.pendingOrders)),
             border: 'border-purple-500/20',
             iconColor: 'text-purple-500',
             valueColor: 'text-purple-600'
         },
         {
-            title: 'New Contacts',
+            title: adminText('newContacts', isArabic),
             value: stats.newContacts,
             icon: Users,
-            desc: `${stats.totalContacts} Total Contacts`,
+            desc: adminText('totalContacts', isArabic).replace('{value}', String(stats.totalContacts)),
             border: 'border-orange-500/20',
             iconColor: 'text-orange-500',
             valueColor: 'text-orange-600'
@@ -53,7 +59,7 @@ export const StatsOverview = ({ stats }: StatsOverviewProps) => {
                     className={`relative overflow-hidden transition-all hover:scale-[1.02] shadow-sm hover:shadow-md ${card.gradient || 'bg-white'} ${card.border ? `border-2 ${card.border}` : 'border-0'}`}
                 >
                     {card.gradient && (
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl transform translate-x-10 -translate-y-10 group-hover:scale-150 transition-transform duration-700"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl transform translate-x-10 -translate-y-10 group-hover:scale-150 transition-transform duration-700 pointer-events-none"></div>
                     )}
 
                     <CardHeader className="flex flex-row items-center justify-between pb-2">

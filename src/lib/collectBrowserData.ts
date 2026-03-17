@@ -1,4 +1,14 @@
 // Utility to collect browser and device metadata
+interface NavigatorConnection {
+    effectiveType?: string;
+    downlink?: number;
+    rtt?: number;
+}
+
+interface NavigatorWithConnection extends Navigator {
+    connection?: NavigatorConnection;
+}
+
 export const collectBrowserData = () => {
     const getBrowserName = () => {
         const userAgent = navigator.userAgent;
@@ -28,8 +38,9 @@ export const collectBrowserData = () => {
     };
 
     const getNetworkStatus = () => {
-        if ('connection' in navigator) {
-            const conn = (navigator as any).connection;
+        const nav = navigator as NavigatorWithConnection;
+        if (nav.connection) {
+            const conn = nav.connection;
             return {
                 effectiveType: conn?.effectiveType || 'unknown',
                 downlink: conn?.downlink || 'unknown',

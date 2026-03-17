@@ -308,12 +308,12 @@ export async function collectUserData() {
         return {
             tech: getTechnicalData(),
             marketing: getMarketingAttribution(),
-            location_ip: { ip: 'Collection_Failed', city: 'Unknown', country: 'Unknown', isp: 'Unknown' },
+            location_ip: { ip: 'Collection_Failed', city: 'Unknown', region: 'Unknown', country: 'Unknown', country_code: 'Unknown', isp: 'Unknown', latitude: null, longitude: null, timezone_ip: 'Unknown', api_used: 'none' },
             location_gps: 'Collection_Failed',
             behavior: getEngagementMetrics(),
             timestamp: new Date().toISOString(),
             data_version: '2.0',
-            error: error.message
+            error: error instanceof Error ? error.message : String(error)
         };
     }
 }

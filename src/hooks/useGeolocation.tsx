@@ -15,13 +15,31 @@ export const useGeolocation = () => {
         loading: false,
     });
 
-    const requestLocation = useCallback(() => {
+    const requestLocation = useCallback(async () => {
         if (!navigator.geolocation) {
             setState(prev => ({
                 ...prev,
                 error: 'Geolocation is not supported by your browser',
             }));
             return;
+        }
+
+        // Check permission state before prompting — avoids browser
+        // console warning when user has permanently dismissed the prompt
+        if (navigator.permissions) {
+            try {
+                const perm = await navigator.permissions.query({ name: 'geolocation' });
+                if (perm.state === 'denied') {
+                    setState(prev => ({
+                        ...prev,
+                        error: 'Location permission denied',
+                        loading: false,
+                    }));
+                    return;
+                }
+            } catch {
+                // Permissions API not fully supported — fall through
+            }
         }
 
         setState(prev => ({ ...prev, loading: true, error: null }));

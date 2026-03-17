@@ -1,13 +1,35 @@
-import { useState, useEffect } from 'react';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { Order, Contact, Client, DashboardStats } from '@/types/dashboard';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { hashPassword } from '@/lib/secretHash';
+import { getSessionToken } from '@/lib/sessionAuth';
+import { Order, Contact, Client, ClientUpdate, DashboardStats, SavedDesign, PricingRequest } from '@/types/dashboard';
 import { toast } from 'sonner';
+import {
+    adminConvertPricingRequest,
+    adminDeleteContact,
+    adminDeleteDesign,
+    adminDeleteOrder,
+    adminDeletePricingRequest,
+    adminUpdateContactStatus,
+    adminUpdateDesignStatus,
+    adminUpdateOrderStatus,
+    adminUpdatePricingRequestStatus,
+    fetchAdminDashboardSnapshot,
+} from '@/services/adminDashboardService';
+
+const ADMIN_EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-client-update`;
 
 export const useAdminDashboard = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [contacts, setContacts] = useState<Contact[]>([]);
+    const [pricingRequests, setPricingRequests] = useState<PricingRequest[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
+    const [clientUpdates, setClientUpdates] = useState<ClientUpdate[]>([]);
+    const [designs, setDesigns] = useState<SavedDesign[]>([]);
     const [loading, setLoading] = useState(true);
+    const refreshTimerRef = useRef<number | null>(null);
+    const refreshInFlightRef = useRef(false);
+    const lastRefreshAtRef = useRef(0);
     const [stats, setStats] = useState<DashboardStats>({
         totalOrders: 0,
         totalRevenue: 0,
@@ -15,104 +37,146 @@ export const useAdminDashboard = () => {
         pendingOrders: 0,
         completedOrders: 0,
         newContacts: 0,
+        newPricingRequests: 0,
+        totalPricingRequests: 0,
         avgOrderValue: 0,
-        unreadMessages: 0
+        unreadMessages: 0,
+        totalDesigns: 0
     });
 
-    useEffect(() => {
-        fetchData();
-        setupRealtimeSubscription();
-    }, []);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
+        if (refreshInFlightRef.current) return;
+        refreshInFlightRef.current = true;
         setLoading(true);
         try {
-            const [ordersRes, contactsRes, clientsRes, messagesRes] = await Promise.all([
-                supabaseAdmin.from('orders').select('*').order('created_at', { ascending: false }),
-                supabaseAdmin.from('contacts').select('*').order('created_at', { ascending: false }),
-                supabaseAdmin.from('clients').select('*').order('created_at', { ascending: false }),
-                supabaseAdmin.from('messages').select('*', { count: 'exact', head: true }).eq('sender', 'client').eq('is_read', false)
-            ]);
-
-            if (ordersRes.error) throw ordersRes.error;
-            if (contactsRes.error) throw contactsRes.error;
-
-            const ordersData = ordersRes.data || [];
-            const contactsData = contactsRes.data || [];
+            const snapshot = await fetchAdminDashboardSnapshot();
+            const ordersData = (snapshot.orders || []) as Order[];
+            const contactsData = (snapshot.contacts || []) as Contact[];
+            const pricingRequestsData = (snapshot.pricingRequests || []) as PricingRequest[];
+            const clientsData = (snapshot.clients || []) as Client[];
+            const designsData = (snapshot.designs || []) as SavedDesign[];
+            const updatesData = (snapshot.clientUpdates || []) as ClientUpdate[];
+            const unreadMessages = Number(snapshot.unreadMessages || 0);
 
             setOrders(ordersData);
             setContacts(contactsData);
-            setClients(clientsRes.data || []);
+            setPricingRequests(pricingRequestsData);
+            setClients(clientsData);
+            setClientUpdates(updatesData);
+            setDesigns(designsData);
 
             // Calculate Stats
             const totalRevenue = ordersData.reduce((sum, order) => sum + (order.total_price || 0), 0);
             const pendingOrders = ordersData.filter(o => o.status === 'pending').length;
             const completedOrders = ordersData.filter(o => o.status === 'completed').length;
             const newContacts = contactsData.filter(c => c.status === 'new').length;
+            const newPricingRequests = pricingRequestsData.filter(request => request.status === 'new').length;
             const avgOrderValue = ordersData.length ? totalRevenue / ordersData.length : 0;
 
             setStats({
                 totalOrders: ordersData.length,
                 totalRevenue,
                 totalContacts: contactsData.length,
+                totalPricingRequests: pricingRequestsData.length,
                 pendingOrders,
                 completedOrders,
                 newContacts,
+                newPricingRequests,
                 avgOrderValue,
-                unreadMessages: messagesRes.count || 0
+                unreadMessages,
+                totalDesigns: designsData.length
             });
 
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
             toast.error('Failed to load dashboard data');
         } finally {
+            lastRefreshAtRef.current = Date.now();
+            refreshInFlightRef.current = false;
             setLoading(false);
         }
-    };
+    }, []);
 
-    const setupRealtimeSubscription = () => {
-        const channel = supabaseAdmin
+    const scheduleRefresh = useCallback((delay = 250) => {
+        const elapsed = Date.now() - lastRefreshAtRef.current;
+        const minGap = 1000;
+        const effectiveDelay = elapsed < minGap ? Math.max(delay, minGap - elapsed) : delay;
+        if (refreshTimerRef.current) {
+            window.clearTimeout(refreshTimerRef.current);
+        }
+        refreshTimerRef.current = window.setTimeout(() => {
+            void fetchData();
+        }, effectiveDelay);
+    }, [fetchData]);
+
+    const setupRealtimeSubscription = useCallback(() => {
+        const channel = supabase
             .channel('admin-dashboard-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-                fetchData(); // Simplest strategy: refresh all on change to ensure consistency
-                toast.info('Orders updated');
+                scheduleRefresh();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, () => {
-                fetchData();
-                toast.info('Contacts updated');
+                scheduleRefresh();
             })
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'pricing_requests' }, () => {
+                scheduleRefresh();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
+                // Client profile fields are persisted in clients table.
+                scheduleRefresh();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'client_updates' }, () => {
+                scheduleRefresh();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'client_assets' }, () => {
+                scheduleRefresh();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'client_messages' }, () => {
+                scheduleRefresh();
+            })
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'client_messages' }, (payload) => {
                 if (payload.new.sender === 'client') {
-                    toast.info('New message received!');
-                    fetchData();
+                    toast.info('New client message received');
+                    scheduleRefresh(120);
                 }
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'saved_designs' }, () => {
+                scheduleRefresh();
             })
             .subscribe();
 
         return () => {
-            supabaseAdmin.removeChannel(channel);
+            supabase.removeChannel(channel);
         };
-    };
+    }, [scheduleRefresh]);
+
+    useEffect(() => {
+        void fetchData();
+        const cleanup = setupRealtimeSubscription();
+        return () => {
+            cleanup();
+            if (refreshTimerRef.current) {
+                window.clearTimeout(refreshTimerRef.current);
+            }
+        };
+    }, [fetchData, setupRealtimeSubscription]);
 
     // --- Actions ---
 
-    const updateOrderStatus = async (id: string, newStatus: string) => {
+    const updateOrderStatus = async (id: string, newStatus: Order['status']) => {
         try {
-            const { error } = await supabaseAdmin.from('orders').update({ status: newStatus }).eq('id', id);
-            if (error) throw error;
+            await adminUpdateOrderStatus(id, newStatus);
             toast.success(`Order status updated to ${newStatus}`);
             // Optimistic update could go here, but realtime/fetchData handles it
-            setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus as any } : o));
+            setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
         } catch (err) {
             toast.error('Failed to update order');
         }
     };
 
     const deleteOrder = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this order?')) return;
         try {
-            const { error } = await supabaseAdmin.from('orders').delete().eq('id', id);
-            if (error) throw error;
+            await adminDeleteOrder(id);
             toast.success('Order deleted');
             setOrders(prev => prev.filter(o => o.id !== id));
         } catch (err) {
@@ -120,22 +184,19 @@ export const useAdminDashboard = () => {
         }
     };
 
-    const updateContactStatus = async (id: string, newStatus: string) => {
+    const updateContactStatus = async (id: string, newStatus: Contact['status']) => {
         try {
-            const { error } = await supabaseAdmin.from('contacts').update({ status: newStatus }).eq('id', id);
-            if (error) throw error;
+            await adminUpdateContactStatus(id, newStatus);
             toast.success(`Contact marked as ${newStatus}`);
-            setContacts(prev => prev.map(c => c.id === id ? { ...c, status: newStatus as any } : c));
+            setContacts(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
         } catch (err) {
             toast.error('Failed to update contact');
         }
     };
 
     const deleteContact = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this contact?')) return;
         try {
-            const { error } = await supabaseAdmin.from('contacts').delete().eq('id', id);
-            if (error) throw error;
+            await adminDeleteContact(id);
             toast.success('Contact deleted');
             setContacts(prev => prev.filter(c => c.id !== id));
         } catch (err) {
@@ -143,18 +204,173 @@ export const useAdminDashboard = () => {
         }
     };
 
-    // Client creation logic from order is complex, keeping simple here or can be moved
+    const updatePricingRequestStatus = async (id: string, newStatus: PricingRequest['status']) => {
+        try {
+            const payload: Partial<PricingRequest> & { reviewed_at?: string | null } = {
+                status: newStatus,
+                reviewed_at: newStatus === 'new' ? null : new Date().toISOString(),
+            };
+            await adminUpdatePricingRequestStatus(id, payload);
+            toast.success(`Pricing request updated to ${newStatus}`);
+            setPricingRequests(prev => prev.map(request => request.id === id ? { ...request, ...payload } : request));
+        } catch (err) {
+            toast.error('Failed to update pricing request');
+        }
+    };
+
+    const deletePricingRequest = async (id: string) => {
+        try {
+            await adminDeletePricingRequest(id);
+            toast.success('Pricing request deleted');
+            setPricingRequests(prev => prev.filter(request => request.id !== id));
+        } catch (err) {
+            toast.error('Failed to delete pricing request');
+        }
+    };
+
+    const convertPricingRequest = async (request: PricingRequest) => {
+        try {
+            const conversion = await adminConvertPricingRequest(request);
+
+            toast.success('Pricing request converted to order');
+            setPricingRequests(prev => prev.map(item => item.id === request.id ? {
+                ...item,
+                status: 'converted',
+                converted_order_id: conversion.orderId,
+                reviewed_at: conversion.reviewedAt,
+            } : item));
+            void fetchData();
+        } catch (err) {
+            console.error('Failed to convert pricing request:', err);
+            toast.error('Failed to convert pricing request');
+        }
+    };
+
+    const updateDesignStatus = async (id: string, newStatus: SavedDesign['status']) => {
+        try {
+            await adminUpdateDesignStatus(id, newStatus);
+            toast.success(`Design marked as ${newStatus}`);
+            setDesigns(prev => prev.map(d => d.id === id ? { ...d, status: newStatus } : d));
+        } catch (err) {
+            toast.error('Failed to update design');
+        }
+    };
+
+    const deleteDesign = async (id: string) => {
+        try {
+            await adminDeleteDesign(id);
+            toast.success('Design deleted');
+            setDesigns(prev => prev.filter(d => d.id !== id));
+        } catch (err) {
+            toast.error('Failed to delete design');
+        }
+    };
+
+    // --- Client CRUD ---
+
+    const addClient = async (data: {
+        username: string;
+        company_name?: string;
+        status?: string;
+        package_name?: string;
+        password?: string;
+    }) => {
+        try {
+            const sessionToken = getSessionToken();
+            if (!sessionToken) throw new Error('Missing admin session token');
+            const response = await fetch(ADMIN_EDGE_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                    'x-session-token': sessionToken,
+                },
+                body: JSON.stringify({
+                    action: 'create',
+                    payload: {
+                        ...data,
+                        password: data.password || await hashPassword('TempPass123!'),
+                    },
+                }),
+            });
+            const payload = await response.json().catch(() => ({ success: false, error: 'Failed to add client' }));
+            if (!response.ok || !payload.success) throw new Error(payload.error || 'Failed to add client');
+            toast.success('Client added successfully!');
+            await fetchData();
+        } catch (err) {
+            toast.error('Failed to add client');
+            throw err;
+        }
+    };
+
+    const deleteClient = async (id: string) => {
+        try {
+            const sessionToken = getSessionToken();
+            if (!sessionToken) throw new Error('Missing admin session token');
+            const response = await fetch(ADMIN_EDGE_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                    'x-session-token': sessionToken,
+                },
+                body: JSON.stringify({ action: 'delete', clientId: id }),
+            });
+            const payload = await response.json().catch(() => ({ success: false, error: 'Failed to delete client' }));
+            if (!response.ok || !payload.success) throw new Error(payload.error || 'Failed to delete client');
+            toast.success('Client deleted');
+            setClients(prev => prev.filter(c => c.id !== id));
+        } catch (err) {
+            toast.error('Failed to delete client');
+        }
+    };
+
+    const updateClient = async (id: string, data: Partial<Client>) => {
+        try {
+            const sessionToken = getSessionToken();
+            if (!sessionToken) throw new Error('Missing admin session token');
+            const response = await fetch(ADMIN_EDGE_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                    'x-session-token': sessionToken,
+                },
+                body: JSON.stringify({ action: 'update', clientId: id, payload: data }),
+            });
+            const payload = await response.json().catch(() => ({ success: false, error: 'Failed to update client' }));
+            if (!response.ok || !payload.success) throw new Error(payload.error || 'Failed to update client');
+            toast.success('Client updated!');
+            setClients(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
+        } catch (err) {
+            toast.error('Failed to update client');
+        }
+    };
 
     return {
         orders,
         contacts,
+        pricingRequests,
         clients,
+        clientUpdates,
+        designs,
         stats,
         loading,
         refresh: fetchData,
         updateOrderStatus,
         deleteOrder,
         updateContactStatus,
-        deleteContact
+        deleteContact,
+        updatePricingRequestStatus,
+        deletePricingRequest,
+        convertPricingRequest,
+        updateDesignStatus,
+        deleteDesign,
+        addClient,
+        deleteClient,
+        updateClient,
     };
 };

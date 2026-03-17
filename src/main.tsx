@@ -49,10 +49,10 @@ try {
     rootElement.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; text-align: center; font-family: system-ui;">
         <div>
-          <h1 style="font-size: 24px; margin-bottom: 16px;">حدث خطأ</h1>
-          <p style="color: #666; margin-bottom: 24px;">عذراً، حدث خطأ أثناء تحميل الموقع.</p>
+          <h1 style="font-size: 24px; margin-bottom: 16px;">Something Went Wrong</h1>
+          <p style="color: #666; margin-bottom: 24px;">An error occurred while loading the site.</p>
           <button onclick="window.location.reload()" style="background: #0070f3; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px;">
-            إعادة التحميل
+            Reload Page
           </button>
         </div>
       </div>

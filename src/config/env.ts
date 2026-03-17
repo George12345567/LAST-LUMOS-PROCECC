@@ -2,7 +2,6 @@ export const env = {
   // Supabase
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || '',
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-  SUPABASE_SERVICE_KEY: import.meta.env.VITE_SUPABASE_SERVICE_KEY || '',
   MASTER_ADMIN_EMAIL: import.meta.env.VITE_MASTER_ADMIN_EMAIL || '',
 
   // EmailJS
