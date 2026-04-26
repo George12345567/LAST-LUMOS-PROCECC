@@ -36,3 +36,4 @@ Thumbs.db
 .env.local
 .env.production.local
 .env.development.local
+DATABASE_TWILIO_SECRETS.sql
